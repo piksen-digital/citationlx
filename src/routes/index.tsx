@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect } from "react"; // Added useEffect here
 import {
   type DatasetRecord, type Style, EXPORTS, STYLES, diff, download, emptyRecord, extractDoi,
   fetchByDoi, formatCitation, parseRecord, score, toAvailability, validate, toBiblatex, toRis, toCsl,
@@ -11,7 +11,7 @@ const FAQS: { q: string; a: string }[] = [
     a: "Most reference managers were built for journal articles and books. When you import a dataset, they often record it as a journal article, drop the version, or lose the publisher (the repository), which produces citations that don't follow DataCite or FORCE11 data citation principles. Citable detects those errors and repairs them against the official registry record.",
   },
   {
-    q: "Which citation styles does Citable support?",
+    q: "Which citation styles does CitationLX support?",
     a: "Seven styles: APA 7, Chicago, MLA 9, Harvard, IEEE, Vancouver and Turabian. You can switch between them instantly and copy or download the result.",
   },
   {
@@ -23,12 +23,12 @@ const FAQS: { q: string; a: string }[] = [
     a: "Clean BibLaTeX, RIS and CSL JSON, plus a Zotero “Extra” field snippet that forces the dataset type and version even in stubborn libraries. Batch mode exports a whole cleaned reference list at once.",
   },
   {
-    q: "Does Citable store my data?",
+    q: "Does CitationLX store my data?",
     a: "No. Everything runs in your browser. Metadata is fetched from the public DataCite and Crossref APIs, and nothing you paste is ever uploaded or saved.",
   },
   {
-    q: "Is Citable free?",
-    a: "Yes. Citable is a free microtool for academic researchers — no account, no sign-in, no limits.",
+    q: "Is CitationLX free?",
+    a: "Yes. CitationLX is a free microtool for academic researchers — no account, no sign-in, no limits.",
   },
 ];
 
@@ -57,14 +57,14 @@ const APP_SCHEMA = {
 export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
-      { title: "Citable — Dataset citation repair for researchers" },
+      { title: "CitationLX — Dataset citation repair for researchers" },
       { name: "description", content: "Paste a DOI or a broken reference-manager export. Get a validated dataset citation in APA, Chicago, MLA and more, plus clean BibTeX, RIS and CSL JSON. Free, private, runs in your browser." },
-      { property: "og:title", content: "Citable — Dataset citation repair" },
+      { property: "og:title", content: "CitationLX — Dataset citation repair" },
       { property: "og:description", content: "Fix dataset records your reference manager imports badly. Validate, repair, export." },
       { property: "og:type", content: "website" },
       { property: "og:url", content: "https://citationlx.online/" },
       { name: "twitter:card", content: "summary" },
-      { name: "twitter:title", content: "Citable — Dataset citation repair" },
+      { name: "twitter:title", content: "CitationLX — Dataset citation repair" },
       { name: "twitter:description", content: "Fix dataset records your reference manager imports badly. Validate, repair, export." },
     ],
     links: [{ rel: "canonical", href: "https://citationlx.online/" }],
@@ -91,15 +91,26 @@ function Index() {
   const [changes, setChanges] = useState<ReturnType<typeof diff>>([]);
   const [source, setSource] = useState("");
 
+  // Inject the Bing meta tag into the document head dynamically
+  useEffect(() => {
+    if (!document.querySelector('meta[name="msvalidate.01"]')) {
+      const meta = document.createElement('meta');
+      meta.name = 'msvalidate.01';
+      meta.content = '7C5C1A3614B15BCE523AB8F4800FE95A';
+      document.head.appendChild(meta);
+    }
+  }, []);
+
   const load = (r: DatasetRecord, src: string, ot?: string, ch: ReturnType<typeof diff> = []) => {
     setRecord(r); setSource(src); setOrigType(ot); setChanges(ch);
   };
 
   return (
+
     <div className="min-h-screen">
       <header className="mx-auto flex max-w-6xl items-center justify-between px-6 py-6">
         <div className="flex items-baseline gap-2">
-          <span className="font-serif text-2xl italic">Citable</span>
+          <span className="font-serif text-2xl italic">CitationLX</span>
           <span className="eyebrow">dataset citation repair</span>
         </div>
         <nav className="hidden items-center gap-5 text-sm md:flex">
@@ -191,10 +202,10 @@ function Index() {
           <div>
             <p className="eyebrow">Suggest a new useful feature</p>
             <p className="mt-2 max-w-xl text-sm leading-relaxed text-muted-foreground">
-              Citable is a microtool on purpose — it does one job well. If there's a dataset citation problem it doesn't solve yet, tell us and we'll consider adding it.
+              CitationLX is a microtool on purpose — it does one job well. If there's a dataset citation problem it doesn't solve yet, tell us and we'll consider adding it.
             </p>
           </div>
-          <a href="mailto:cantrell22@hotmail.com?subject=Feature%20suggestion%20for%20Citable" className="btn shrink-0">
+          <a href="mailto:cantrell22@hotmail.com?subject=Feature%20suggestion%20for%20CitationLX" className="btn shrink-0">
             Suggest a feature
           </a>
         </div>
@@ -207,7 +218,7 @@ function Index() {
           {" · "}
           <a href="#faq" className="underline-offset-2 hover:underline">FAQ</a>
           {" · "}
-          <a href="mailto:cantrell22@hotmail.com?subject=Feature%20suggestion%20for%20Citable" className="underline-offset-2 hover:underline">Suggest a feature</a>
+          <a href="mailto:cantrell22@hotmail.com?subject=Feature%20suggestion%20for%20CitationLX" className="underline-offset-2 hover:underline">Suggest a feature</a>
         </p>
       </footer>
     </div>
