@@ -64,7 +64,7 @@ export async function fetchByDoi(doi: string): Promise<{ record: DatasetRecord; 
     }
   } catch {}
   const r = await fetch(`https://doi.org/${doi}`, { headers: { Accept: "application/vnd.citationstyles.csl+json" } });
-  if (!r.ok) throw new Error(`DOI not found (${r.status})`);
+  if (!r.ok) throw new Error(`DOI not found (${r.status}). If this dataset has no registered DOI, use the “No DOI” tab to build the citation manually.`);
   const c = await r.json();
   return { record: fromCsl(c, doi), source: "Crossref / doi.org", rawType: c.type ?? "" };
 }
@@ -256,6 +256,34 @@ export function formatCitation(r: DatasetRecord, style: Style): string {
       const a = cs.map((c) => `${initials(c.given)} ${c.family ?? c.literal}`.trim());
       return `${join(a, "and")}, “${r.title},” ${r.publisher}, ${r.version ? `ver. ${r.version}, ` : ""}${r.year}. [Online]. Available: ${id}`;
     }
+  }
+}
+
+// ---------- Official DataCite style rendering ----------
+// DataCite's content-negotiation endpoint renders registry-verified citations.
+const STYLE_API: Record<Style, string> = {
+  "APA 7": "apa",
+  DataCite: "datacite",
+  Chicago: "chicago-author-date",
+  Harvard: "harvard3",
+  "MLA 9": "mla",
+  Vancouver: "vancouver",
+  IEEE: "ieee",
+};
+
+/** Fetch the official rendered citation for a DOI; falls back to local formatting on any failure. */
+export async function fetchStyledCitation(r: DatasetRecord, style: Style): Promise<string> {
+  if (!r.doi) return formatCitation(r, style);
+  try {
+    const res = await fetch(`https://api.datacite.org/text/x-bibliography/${encodeURIComponent(r.doi)}?style=${STYLE_API[style]}`, {
+      headers: { Accept: "text/x-bibliography" },
+    });
+    if (!res.ok) throw new Error(String(res.status));
+    const text = (await res.text()).trim();
+    if (!text) throw new Error("empty");
+    return text;
+  } catch {
+    return formatCitation(r, style);
   }
 }
 
