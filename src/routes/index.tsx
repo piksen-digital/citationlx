@@ -1,14 +1,14 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useMemo, useState, useEffect } from "react"; // Added useEffect here
+import { useEffect, useMemo, useState } from "react";
 import {
   type DatasetRecord, type Style, EXPORTS, STYLES, diff, download, emptyRecord, extractDoi,
-  fetchByDoi, formatCitation, parseRecord, score, toAvailability, validate, toBiblatex, toRis, toCsl,
+  fetchByDoi, fetchStyledCitation, formatCitation, parseRecord, score, toAvailability, validate, toBiblatex, toRis, toCsl,
 } from "@/lib/citation";
 
 const FAQS: { q: string; a: string }[] = [
   {
     q: "Why do reference managers get dataset citations wrong?",
-    a: "Most reference managers were built for journal articles and books. When you import a dataset, they often record it as a journal article, drop the version, or lose the publisher (the repository), which produces citations that don't follow DataCite or FORCE11 data citation principles. Citable detects those errors and repairs them against the official registry record.",
+    a: "Most reference managers were built for journal articles and books. When you import a dataset, they often record it as a journal article, drop the version, or lose the publisher (the repository), which produces citations that don't follow DataCite or FORCE11 data citation principles. CitationLX detects those errors and repairs them against the official registry record.",
   },
   {
     q: "Which citation styles does CitationLX support?",
@@ -45,7 +45,7 @@ const FAQ_SCHEMA = {
 const APP_SCHEMA = {
   "@context": "https://schema.org",
   "@type": "WebApplication",
-  name: "Citable",
+  name: "CitationLX",
   applicationCategory: "ReferenceApplication",
   operatingSystem: "Web",
   url: "/",
@@ -91,22 +91,11 @@ function Index() {
   const [changes, setChanges] = useState<ReturnType<typeof diff>>([]);
   const [source, setSource] = useState("");
 
-  // Inject the Bing meta tag into the document head dynamically
-  useEffect(() => {
-    if (!document.querySelector('meta[name="msvalidate.01"]')) {
-      const meta = document.createElement('meta');
-      meta.name = 'msvalidate.01';
-      meta.content = '7C5C1A3614B15BCE523AB8F4800FE95A';
-      document.head.appendChild(meta);
-    }
-  }, []);
-
   const load = (r: DatasetRecord, src: string, ot?: string, ch: ReturnType<typeof diff> = []) => {
     setRecord(r); setSource(src); setOrigType(ot); setChanges(ch);
   };
 
   return (
-
     <div className="min-h-screen">
       <header className="mx-auto flex max-w-6xl items-center justify-between px-6 py-6">
         <div className="flex items-baseline gap-2">
@@ -116,7 +105,7 @@ function Index() {
         <nav className="hidden items-center gap-5 text-sm md:flex">
           <a href="#how-it-works" className="text-muted-foreground transition hover:text-foreground">How it works</a>
           <a href="#faq" className="text-muted-foreground transition hover:text-foreground">FAQ</a>
-          <a href="mailto:cantrell22@hotmail.com?subject=Feature%20suggestion%20for%20Citable" className="btn-ghost">Suggest a feature</a>
+          <a href="mailto:cantrell22@hotmail.com?subject=Feature%20suggestion%20for%20CitationLX" className="btn-ghost">Suggest a feature</a>
         </nav>
         <span className="font-mono text-xs text-muted-foreground md:hidden">DataCite · Crossref</span>
       </header>
@@ -170,7 +159,7 @@ function Index() {
         <div className="mt-6 grid gap-4 md:grid-cols-3">
           {[
             ["1", "Paste", "Drop in a DOI or repository link, a broken BibTeX / RIS / CSL export from your reference manager, or build a record manually for data shared without a DOI."],
-            ["2", "Diagnose & repair", "Citable checks the record against the DataCite or Crossref registry, fixes the resource type, version, authors and year, and shows you exactly which fields changed — with a citation health score."],
+            ["2", "Diagnose & repair", "CitationLX checks the record against the DataCite or Crossref registry, fixes the resource type, version, authors and year, and shows you exactly which fields changed — with a citation health score."],
             ["3", "Export", "Copy a journal-ready citation in seven styles, download clean BibLaTeX, RIS or CSL JSON, and generate a Data Availability Statement or Zotero Extra snippet."],
           ].map(([n, title, body]) => (
             <div key={n} className="panel p-6">
@@ -249,10 +238,10 @@ function DoiInput({ onLoad }: { onLoad: (r: DatasetRecord, s: string, ot?: strin
   const [err, setErr] = useState("");
   const go = async () => {
     const doi = extractDoi(v);
-    if (!doi) return setErr("No DOI found. Repository pages (Zenodo, Dryad, figshare) usually show one.");
+    if (!doi) return setErr("No DOI found in that input. Repository pages (Zenodo, Dryad, figshare) usually show one — or use the “No DOI” tab to build the citation manually.");
     setErr(""); setBusy(true);
     try { const { record, source, rawType } = await fetchByDoi(doi); onLoad(record, source, rawType); }
-    catch (e: any) { setErr(e.message); }
+    catch (e: any) { setErr(`${e.message} — you can also switch to the “No DOI” tab and enter the details manually.`); }
     finally { setBusy(false); }
   };
   return (
@@ -346,7 +335,18 @@ function Workbench({ record, setRecord, origType, changes, source }: {
   const [exp, setExp] = useState<keyof typeof EXPORTS>("BibLaTeX");
   const [copied, setCopied] = useState("");
   const copy = (t: string, id: string) => { navigator.clipboard.writeText(t.replace(/\*/g, "")); setCopied(id); setTimeout(() => setCopied(""), 1200); };
-  const cite = formatCitation(record, style);
+  const [apiCite, setApiCite] = useState<string | null>(null);
+  const [citeLoading, setCiteLoading] = useState(false);
+  useEffect(() => {
+    let live = true;
+    if (!record.doi) { setApiCite(null); return; }
+    setCiteLoading(true);
+    fetchStyledCitation(record, style)
+      .then((t) => { if (live) { setApiCite(t); setCiteLoading(false); } })
+      .catch(() => { if (live) { setApiCite(null); setCiteLoading(false); } });
+    return () => { live = false; };
+  }, [record.doi, style, record]);
+  const cite = apiCite ?? formatCitation(record, style);
   const out = EXPORTS[exp](record);
   const set = (k: keyof DatasetRecord) => (e: any) => setRecord({ ...record, [k]: e.target.value });
 
@@ -412,8 +412,12 @@ function Workbench({ record, setRecord, origType, changes, source }: {
             <button key={st} onClick={() => setStyle(st)} className={`rounded-full px-3 py-1 text-xs ${style === st ? "bg-accent text-accent-foreground" : "bg-muted hover:bg-secondary"}`}>{st}</button>
           ))}
         </div>
-        <p className="mt-5 font-serif text-lg leading-relaxed" dangerouslySetInnerHTML={{ __html: escapeHtml(cite).replace(/\*(.+?)\*/g, "<em>$1</em>") }} />
-        <button className="btn-ghost mt-4" onClick={() => copy(cite, "cite")}>{copied === "cite" ? "Copied ✓" : "Copy citation"}</button>
+        <p className={`mt-5 font-serif text-lg leading-relaxed ${citeLoading ? "opacity-50" : ""}`}
+          dangerouslySetInnerHTML={{ __html: apiCite ? apiCite : escapeHtml(cite).replace(/\*(.+?)\*/g, "<em>$1</em>") }} />
+        <div className="mt-4 flex flex-wrap items-center gap-3">
+          <button className="btn-ghost" onClick={() => copy(cite.replace(/<[^>]+>/g, "").replace(/&amp;/g, "&").replace(/&lt;/g, "<").replace(/&gt;/g, ">"), "cite")}>{copied === "cite" ? "Copied ✓" : "Copy citation"}</button>
+          {record.doi && <span className="text-xs text-muted-foreground">{citeLoading ? "Fetching official style…" : apiCite ? "Rendered by the DataCite registry" : "Rendered locally (registry unavailable)"}</span>}
+        </div>
       </div>
 
       <div className="panel p-6">
