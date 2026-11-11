@@ -32,7 +32,7 @@ const FAQS: { q: string; a: string }[] = [
   },
   {
     q: "Is there a browser button?",
-    a: "Yes. Drag the “Fix this citation” button in the Browser button section below to your bookmarks bar. On any repository or journal page, one click finds the DOI and opens it in CitationLX. No extension or install needed.",
+    a: "Yes. Drag the “Fix this citation” button in the Browser button section to your bookmarks bar. On any repository or journal page, one click finds the DOI and opens it in CitationLX. No extension or install needed.",
   },
   {
     q: "Can I install CitationLX as an app?",
@@ -54,6 +54,18 @@ const FAQS: { q: string; a: string }[] = [
     q: "Is CitationLX free?",
     a: "Yes. CitationLX is a free microtool for academic researchers — no account, no sign-in, no limits.",
   },
+];
+
+const FEATURES: { icon: string; title: string; body: string }[] = [
+  { icon: "🛡️", title: "Version-DOI guard", body: "Zenodo, Dryad and figshare records are checked for concept vs version DOIs, with one-click switching to the exact snapshot your results depend on." },
+  { icon: "⚠️", title: "Retraction & update warnings", body: "Every DOI fetch checks Crossref's update metadata, so retracted or corrected records are flagged — with a link to the notice — before you cite them." },
+  { icon: "💻", title: "Software & code mode", body: "Paste a GitHub repo or CITATION.cff (or a Zenodo release DOI) and get proper software citations: @software BibLaTeX, RIS type COMP and CSL software." },
+  { icon: "🎓", title: "ORCID author pickup", body: "Paste an ORCID iD and the verified name is pulled from the ORCID public API, fixing scrambled and organisational names at the source." },
+  { icon: "🔖", title: "“Fix this citation” bookmarklet", body: "Drag one button to your bookmarks bar. On any repository or journal page, a single click finds the DOI and opens it in CitationLX — no extension needed." },
+  { icon: "🌙", title: "Installable app with dark mode", body: "CitationLX is a Progressive Web App: install it from your browser menu, keep working offline, and flip to dark mode for late-night writing sessions." },
+  { icon: "✒️", title: "Seven citation styles", body: "APA 7, DataCite, Chicago, MLA 9, Harvard, IEEE and Vancouver — rendered by the DataCite registry where possible, not approximated." },
+  { icon: "📚", title: "Batch & dedupe", body: "Paste a whole reference list or .bib file: duplicates are dropped, every DOI re-fetched, and one clean .bib, .ris or CSL JSON file comes out." },
+  { icon: "🔒", title: "Private by design", body: "Everything runs in your browser. Nothing you paste is ever uploaded or stored — the public registries are queried directly from your device." },
 ];
 
 const FAQ_SCHEMA = {
@@ -156,10 +168,11 @@ function Index() {
           <span className="eyebrow">dataset citation repair</span>
         </div>
         <nav className="hidden items-center gap-5 text-sm md:flex">
+          <a href="#bookmarklet" className="text-muted-foreground transition hover:text-foreground">Browser button</a>
+          <a href="#features" className="text-muted-foreground transition hover:text-foreground">Features</a>
           <a href="#how-it-works" className="text-muted-foreground transition hover:text-foreground">How it works</a>
           <a href="#faq" className="text-muted-foreground transition hover:text-foreground">FAQ</a>
           <a href="/guides" className="text-muted-foreground transition hover:text-foreground">Guides</a>
-          <a href="#bookmarklet" className="text-muted-foreground transition hover:text-foreground">Browser button</a>
           <a href="mailto:cantrell22@hotmail.com?subject=Feature%20suggestion%20for%20CitationLX" className="btn-ghost">Suggest a feature</a>
           <ThemeToggle />
         </nav>
@@ -213,6 +226,32 @@ function Index() {
         </div>
       </main>
 
+      <section id="bookmarklet" className="mx-auto max-w-6xl px-6 pb-16">
+        <p className="eyebrow">Browser button</p>
+        <h2 className="mt-2 text-3xl">“Fix this citation” bookmarklet</h2>
+        <div className="panel mt-6 p-8">
+          <p className="max-w-2xl text-sm leading-relaxed text-muted-foreground">
+            A zero-install alternative to a full browser extension. On any repository or journal page, one click finds the
+            DOI (from the page's citation metadata or your text selection) and opens it in CitationLX.
+          </p>
+          <Bookmarklet />
+        </div>
+      </section>
+
+      <section id="features" className="mx-auto max-w-6xl px-6 pb-16">
+        <p className="eyebrow">Features</p>
+        <h2 className="mt-2 text-3xl">Everything you need to cite data right</h2>
+        <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          {FEATURES.map((f) => (
+            <div key={f.title} className="panel group p-6 transition duration-200 hover:-translate-y-1 hover:border-accent/50">
+              <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-accent/10 text-xl transition group-hover:scale-110">{f.icon}</div>
+              <h3 className="mt-4 text-lg">{f.title}</h3>
+              <p className="mt-2 text-sm leading-relaxed text-muted-foreground">{f.body}</p>
+            </div>
+          ))}
+        </div>
+      </section>
+
       <section id="how-it-works" className="mx-auto max-w-6xl px-6 pb-16">
         <p className="eyebrow">How it works</p>
         <h2 className="mt-2 text-3xl">Three steps to a correct dataset citation</h2>
@@ -229,18 +268,6 @@ function Index() {
               </div>
             ))}
         </div>
-        <div className="mt-4 grid gap-3 text-sm text-muted-foreground md:grid-cols-3">
-          {[
-            "Version-DOI guard for Zenodo, Dryad & figshare",
-            "Retraction & update warnings from Crossref",
-            "Software mode: GitHub repos & CITATION.cff",
-            "ORCID author pickup for verified names",
-            "“Fix this citation” bookmarklet",
-            "Installable app with dark mode",
-          ].map((f) => (
-            <div key={f} className="panel p-4">✦ {f}</div>
-          ))}
-        </div>
       </section>
 
       <section id="faq" className="mx-auto max-w-6xl px-6 pb-16">
@@ -255,18 +282,6 @@ function Index() {
                 <p className="mt-3 text-sm leading-relaxed text-muted-foreground">{f.a}</p>
               </details>
             ))}
-        </div>
-      </section>
-
-      <section id="bookmarklet" className="mx-auto max-w-6xl px-6 pb-16">
-        <p className="eyebrow">Browser button</p>
-        <h2 className="mt-2 text-3xl">“Fix this citation” bookmarklet</h2>
-        <div className="panel mt-6 p-8">
-          <p className="max-w-2xl text-sm leading-relaxed text-muted-foreground">
-            A zero-install alternative to a full browser extension. On any repository or journal page, one click finds the
-            DOI (from the page's citation metadata or your text selection) and opens it in CitationLX.
-          </p>
-          <Bookmarklet />
         </div>
       </section>
 
@@ -287,11 +302,13 @@ function Index() {
       <footer className="border-t py-8 text-center text-xs text-muted-foreground">
         <p>Metadata from DataCite & Crossref public APIs. Runs entirely in your browser — nothing is stored.</p>
         <p className="mt-2">
+          <a href="#bookmarklet" className="underline-offset-2 hover:underline">Browser button</a>
+          {" · "}
+          <a href="#features" className="underline-offset-2 hover:underline">Features</a>
+          {" · "}
           <a href="#how-it-works" className="underline-offset-2 hover:underline">How it works</a>
           {" · "}
           <a href="#faq" className="underline-offset-2 hover:underline">FAQ</a>
-          {" · "}
-          <a href="#bookmarklet" className="underline-offset-2 hover:underline">Bookmarklet</a>
           {" · "}
           <a href="/guides" className="underline-offset-2 hover:underline">Guides</a>
           {" · "}
