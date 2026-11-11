@@ -1,0 +1,13 @@
+{
+  "name": "CitationLX — Dataset citation repair",
+  "short_name": "CitationLX",
+  "description": "Fix dataset records your reference manager imports badly. Validate, repair, export. Free, private, runs in your browser.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#1d1d26",
+  "theme_color": "#1d1d26",
+  "icons": [
+    { "src": "/favicon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" }
+  ]
+}
