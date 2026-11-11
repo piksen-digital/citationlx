@@ -246,7 +246,7 @@ export function formatCitation(r: DatasetRecord, style: Style): string {
   const acc = !r.doi && r.accessed ? fmtDate(r.accessed) : "";
   switch (style) {
     case "APA 7": {
-      const a = cs.length > 20 ? [...cs.slice(0, 19).map((c) => nm(c, "apa")), "⊂"nm(cs.at(-1)!, "apa")].join(", ") : join(cs.map((c) => nm(c, "apa")), "&");
+      const a = cs.length > 20 ? [...cs.slice(0, 19).map((c) => nm(c, "apa")), "⊂", nm(cs.at(-1)!, "apa")].join(", ") : join(cs.map((c) => nm(c, "apa")), "&");
       return `${a || r.publisher} (${r.year || "n.d."}). *${r.title}*${v} ${isSw ? "[Computer software]" : "[Data set]"}. ${r.publisher ? r.publisher + ". " : ""}${acc ? `Retrieved ${acc}, from ` : ""}${id}`.trim();
     }
     case "DataCite":
@@ -550,3 +550,4 @@ export async function fetchOrcidAuthor(input: string): Promise<Creator> {
   const credit = j?.person?.["credit-names"]?.[0]?.["credit-name"]?.value ?? undefined;
   return { family, given, literal: family || given ? undefined : credit ?? id, orcid: `https://orcid.org/${id}` };
 }
+
