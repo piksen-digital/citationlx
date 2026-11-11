@@ -35,7 +35,9 @@ export function extractDoi(input: string): string | null {
   return m[0].replace(/[.)\]]+$/, "").toLowerCase();
 }
 
-export async function fetchByDoi(doi: string): Promise<{ record: DatasetRecord; source: string; rawType: string }> {
+export type VersionInfo = { kind: "concept" | "version"; conceptDoi?: string; versionDois?: string[] };
+
+export async function fetchByDoi(doi: string): Promise<{ record: DatasetRecord; source: string; rawType: string; versions?: VersionInfo }> {
   // Try DataCite first (richer dataset metadata), fallback to content negotiation.
   try {
     const r = await fetch(`https://api.datacite.org/dois/${encodeURIComponent(doi)}`);
@@ -60,7 +62,15 @@ export async function fetchByDoi(doi: string): Promise<{ record: DatasetRecord; 
         license: a.rightsList?.[0]?.rights,
         identifierType: "DOI",
       };
-      return { record: rec, source: "DataCite", rawType: a.types?.resourceTypeGeneral ?? "" };
+      const rel: any[] = a.relatedIdentifiers ?? [];
+      const toDoi = (x: any) => String(x?.relatedIdentifier ?? "").replace(/^doi:/i, "").toLowerCase();
+      const conceptRel = rel.find((x) => x.relationType === "IsVersionOf")
+        ?? rel.find((x) => x.relationType === "IsPreviousVersionOf" || x.relationType === "IsNewVersionOf");
+      const versionDois = rel.filter((x) => x.relationType === "HasVersion").map(toDoi);
+      const versions: VersionInfo | undefined = conceptRel
+        ? { kind: "version", conceptDoi: toDoi(conceptRel) }
+        : versionDois.length ? { kind: "concept", versionDois } : undefined;
+      return { record: rec, source: "DataCite", rawType: a.types?.resourceTypeGeneral ?? "", versions };
     }
   } catch {}
   const r = await fetch(`https://doi.org/${doi}`, { headers: { Accept: "application/vnd.citationstyles.csl+json" } });
@@ -357,4 +367,31 @@ export function download(name: string, text: string, mime = "text/plain") {
   const a = document.createElement("a");
   a.href = url; a.download = name; a.click();
   URL.revokeObjectURL(url);
+}
+
+// ---------- Shareable repair reports (URL fragment only — nothing is stored server-side) ----------
+
+export type SharePayload = {
+  record: DatasetRecord; origType?: string;
+  changes: { field: string; before: string; after: string }[]; source: string;
+};
+
+export function encodeShare(p: SharePayload): string {
+  const bytes = new TextEncoder().encode(JSON.stringify({ v: 1, ...p }));
+  let bin = "";
+  bytes.forEach((b) => (bin += String.fromCharCode(b)));
+  return btoa(bin).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+}
+
+export function decodeShare(s: string): SharePayload | null {
+  try {
+    const b64 = s.replace(/-/g, "+").replace(/_/g, "/");
+    const bin = atob(b64 + "=".repeat((4 - (b64.length % 4)) % 4));
+    const bytes = Uint8Array.from(bin, (ch) => ch.charCodeAt(0));
+    const j = JSON.parse(new TextDecoder().decode(bytes));
+    if (!j || j.v !== 1 || !j.record || !Array.isArray(j.record.creators)) return null;
+    return { record: j.record, origType: j.origType, changes: j.changes ?? [], source: j.source || "Shared report" };
+  } catch {
+    return null;
+  }
 }
