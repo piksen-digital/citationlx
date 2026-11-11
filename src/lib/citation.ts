@@ -9,7 +9,7 @@ export type DatasetRecord = {
   version: string;
   doi: string;
   url: string;
-  resourceType: string; // e.g. Dataset
+  resourceType: string; // e.g. Dataset, Software
   accessed: string; // YYYY-MM-DD
   description?: string;
   license?: string;
@@ -89,7 +89,7 @@ function fromCsl(c: any, doi: string): DatasetRecord {
     version: c.version ?? "",
     doi,
     url: `https://doi.org/${doi}`,
-    resourceType: c.type === "dataset" ? "Dataset" : c.type ?? "",
+    resourceType: c.type === "dataset" ? "Dataset" : c.type === "software" ? "Software" : c.type ?? "",
     identifierType: "DOI",
   };
 }
@@ -147,7 +147,7 @@ function parseBibtex(t: string): Parsed {
       version: f.version ?? f.edition ?? "",
       doi,
       url: f.url ?? (doi ? `https://doi.org/${doi}` : ""),
-      resourceType: type === "dataset" ? "Dataset" : "",
+      resourceType: type === "dataset" ? "Dataset" : type === "software" ? "Software" : "",
       accessed: f.urldate ?? emptyRecord().accessed,
     },
   };
@@ -170,7 +170,7 @@ function parseRis(t: string): Parsed {
       version: get("ET")[0] ?? "",
       doi,
       url: get("UR")[0] ?? (doi ? `https://doi.org/${doi}` : ""),
-      resourceType: type === "DATA" ? "Dataset" : "",
+      resourceType: type === "DATA" ? "Dataset" : type === "COMP" ? "Software" : "",
     },
   };
 }
@@ -183,7 +183,7 @@ export function validate(r: DatasetRecord, originalType?: string): Issue[] {
   const push = (level: Issue["level"], field: string, message: string, fix?: string) =>
     out.push({ level, field, message, fix });
 
-  if (originalType && !/^(dataset|data|misc)$/i.test(originalType) && originalType !== "?")
+  if (originalType && !/^(dataset|data|misc|software|comp)$/i.test(originalType) && originalType !== "?")
     push("error", "Item type", `Imported as "${originalType}" — reference managers will format it like a journal article.`, "Set type to Dataset (RIS: DATA, BibLaTeX: @dataset, CSL: dataset).");
   if (originalType && /^misc$/i.test(originalType))
     push("warn", "Item type", "Typed as @misc. Works, but styles can't add the [Data set] label.", "Use @dataset (BibLaTeX) or keep @misc with a type note.");
@@ -206,7 +206,7 @@ export function validate(r: DatasetRecord, originalType?: string): Issue[] {
     if (!r.accessed) push("error", "Access date", "Non-DOI citations need an access date.");
   } else push("error", "Identifier", "No DOI, URL or identifier — the data can't be located.");
   if (r.url && /^http:\/\/dx\.doi\.org|^doi:/i.test(r.url)) push("warn", "Identifier", "Old DOI form. Current guidance is https://doi.org/…");
-  if (r.resourceType && !/dataset|data/i.test(r.resourceType)) push("warn", "Resource type", `Resource type is "${r.resourceType}", not Dataset.`);
+  if (r.resourceType && !/dataset|data|software/i.test(r.resourceType)) push("warn", "Resource type", `Resource type is "${r.resourceType}", not Dataset.`);
   return out;
 }
 
@@ -231,36 +231,39 @@ const idLink = (r: DatasetRecord) => (r.doi ? `https://doi.org/${r.doi}` : r.url
 const fmtDate = (d: string) => {
   const dt = new Date(d);
   return isNaN(+dt) ? d : dt.toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" });
-};
+}
 
 export const STYLES = ["APA 7", "DataCite", "Chicago", "Harvard", "MLA 9", "Vancouver", "IEEE"] as const;
 export type Style = (typeof STYLES)[number];
 
+const isSoftware = (r: DatasetRecord) => /software/i.test(r.resourceType ?? "");
+
 export function formatCitation(r: DatasetRecord, style: Style): string {
   const cs = r.creators;
+  const isSw = isSoftware(r);
   const v = r.version ? ` (Version ${r.version.replace(/^v(ersion)?\s*/i, "")})` : "";
   const id = idLink(r);
   const acc = !r.doi && r.accessed ? fmtDate(r.accessed) : "";
   switch (style) {
     case "APA 7": {
-      const a = cs.length > 20 ? [...cs.slice(0, 19).map((c) => nm(c, "apa")), "…", nm(cs.at(-1)!, "apa")].join(", ") : join(cs.map((c) => nm(c, "apa")), "&");
-      return `${a || r.publisher} (${r.year || "n.d."}). *${r.title}*${v} [Data set]. ${r.publisher ? r.publisher + ". " : ""}${acc ? `Retrieved ${acc}, from ` : ""}${id}`.trim();
+      const a = cs.length > 20 ? [...cs.slice(0, 19).map((c) => nm(c, "apa")), "⊂"nm(cs.at(-1)!, "apa")].join(", ") : join(cs.map((c) => nm(c, "apa")), "&");
+      return `${a || r.publisher} (${r.year || "n.d."}). *${r.title}*${v} ${isSw ? "[Computer software]" : "[Data set]"}. ${r.publisher ? r.publisher + ". " : ""}${acc ? `Retrieved ${acc}, from ` : ""}${id}`.trim();
     }
     case "DataCite":
       return `${cs.map((c) => nm(c, "apa")).join("; ")} (${r.year}). ${r.title}${r.version ? ` (Version ${r.version})` : ""} [${r.resourceType || "Dataset"}]. ${r.publisher}. ${id}`;
     case "Chicago": {
       const a = cs.length ? [nm(cs[0], "inverted"), ...cs.slice(1).map((c) => nm(c, "full"))] : [];
-      return `${join(a, "and")}. ${r.year}. “${r.title}.” ${r.version ? `Version ${r.version}. ` : ""}${r.publisher}. Dataset. ${acc ? `Accessed ${acc}. ` : ""}${id}.`;
+      return `${join(a, "and")}. ${r.year}. “${r.title}.” ${r.version ? `Version ${r.version}. ` : ""}${r.publisher}. ${isSw ? "Computer software" : "Dataset"}. ${acc ? `Accessed ${acc}. ` : ""}${id}.`;
     }
     case "Harvard":
-      return `${join(cs.map((c) => nm(c, "apa")), "and")} (${r.year}) *${r.title}*${v ? "," + v.replace(/[()]/g, "") : ""} [Dataset]. ${r.publisher}. ${acc ? `Available at: ${id} (Accessed: ${acc}).` : `Available at: ${id}.`}`;
+      return `${join(cs.map((c) => nm(c, "apa")), "and")} (${r.year}) *${r.title}*${v ? "," + v.replace(/[()]/g, "") : ""} ${isSw ? "[Computer software]" : "[Dataset]"}. ${r.publisher}. ${acc ? `Available at: ${id} (Accessed: ${acc}).` : `Available at: ${id}.`}`;
     case "MLA 9": {
       const a = cs.length === 0 ? "" : cs.length === 1 ? nm(cs[0], "inverted") : cs.length === 2 ? `${nm(cs[0], "inverted")}, and ${nm(cs[1], "full")}` : `${nm(cs[0], "inverted")}, et al`;
-      return `${a ? a + ". " : ""}*${r.title}*. ${r.version ? `Version ${r.version}, ` : ""}${r.publisher}, ${r.year}. Dataset, ${id.replace(/^https?:\/\//, "")}.${acc ? ` Accessed ${acc}.` : ""}`;
+      return `${a ? a + ". " : ""}*${r.title}*. ${r.version ? `Version ${r.version}, ` : ""}${r.publisher}, ${r.year}. ${isSw ? "Computer software" : "Dataset"}, ${id.replace(/^https?:\/\//, "")}.${acc ? ` Accessed ${acc}.` : ""}`;
     }
     case "Vancouver": {
       const a = cs.length > 6 ? cs.slice(0, 6).map((c) => nm(c, "vancouver")).join(", ") + ", et al" : cs.map((c) => nm(c, "vancouver")).join(", ");
-      return `${a}. ${r.title} [dataset]. ${r.version ? `Version ${r.version}. ` : ""}${r.publisher}; ${r.year}${acc ? ` [cited ${r.accessed}]` : ""}. Available from: ${id}`;
+      return `${a}. ${r.title} ${isSw ? "[computer software]" : "[dataset]"}. ${r.version ? `Version ${r.version}. ` : ""}${r.publisher}; ${r.year}${acc ? ` [cited ${r.accessed}]` : ""}. Available from: ${id}`;
     }
     case "IEEE": {
       const a = cs.map((c) => `${initials(c.given)} ${c.family ?? c.literal}`.trim());
@@ -307,18 +310,18 @@ export function toBiblatex(r: DatasetRecord) {
     ["author", bibAuthors(r)], ["title", `{${r.title}}`], ["year", r.year], ["publisher", r.publisher],
     ["version", r.version], ["doi", r.doi], ["url", idLink(r)], ["urldate", r.doi ? "" : r.accessed],
   ];
-  return `@dataset{${key(r)},\n${f.filter(([, v]) => v).map(([k, v]) => `  ${k} = {${v}}`).join(",\n")}\n}`;
+  return `@${isSoftware(r) ? "software" : "dataset"}{${key(r)},\n${f.filter(([, v]) => v).map(([k, v]) => `  ${k} = {${v}}`).join(",\n")}\n}`;
 }
 export function toBibtex(r: DatasetRecord) {
   const f: [string, string][] = [
     ["author", bibAuthors(r)], ["title", `{${r.title}}`], ["year", r.year], ["publisher", r.publisher],
     ["howpublished", r.publisher], ["version", r.version], ["doi", r.doi], ["url", idLink(r)],
-    ["note", `[Data set]${r.version ? `, Version ${r.version}` : ""}${!r.doi && r.accessed ? `. Accessed ${r.accessed}` : ""}`],
+    ["note", `[${isSoftware(r) ? "Computer software" : "Data set"}]${r.version ? `, Version ${r.version}` : ""}${!r.doi && r.accessed ? `. Accessed ${r.accessed}` : ""}`],
   ];
   return `@misc{${key(r)},\n${f.filter(([, v]) => v).map(([k, v]) => `  ${k} = {${v}}`).join(",\n")}\n}`;
 }
 export function toRis(r: DatasetRecord) {
-  const l = ["TY  - DATA", ...r.creators.map((c) => `AU  - ${c.family ? `${c.family}, ${c.given ?? ""}`.replace(/, $/, "") : c.literal}`),
+  const l = [isSoftware(r) ? "TY  - COMP" : "TY  - DATA", ...r.creators.map((c) => `AU  - ${c.family ? `${c.family}, ${c.given ?? ""}`.replace(/, $/, "") : c.literal}`),
     `TI  - ${r.title}`, `PY  - ${r.year}`, r.publisher && `PB  - ${r.publisher}`, r.publisher && `DP  - ${r.publisher}`,
     r.version && `ET  - ${r.version}`, r.doi && `DO  - ${r.doi}`, `UR  - ${idLink(r)}`, !r.doi && r.accessed && `Y2  - ${r.accessed}`,
     r.license && `C1  - License: ${r.license}`, "ER  - "];
@@ -326,17 +329,17 @@ export function toRis(r: DatasetRecord) {
 }
 export function toCsl(r: DatasetRecord) {
   return {
-    id: key(r), type: "dataset", title: r.title,
+    id: key(r), type: isSoftware(r) ? "software" : "dataset", title: r.title,
     author: r.creators.map((c) => (c.family ? { family: c.family, given: c.given } : { literal: c.literal })),
     issued: r.year ? { "date-parts": [[Number(r.year)]] } : undefined,
     publisher: r.publisher, version: r.version || undefined, DOI: r.doi || undefined, URL: idLink(r),
     accessed: !r.doi && r.accessed ? { "date-parts": [r.accessed.split("-").map(Number)] } : undefined,
-    genre: "Data set",
+    genre: isSoftware(r) ? "Software" : "Data set",
   };
 }
 export function toZoteroExtra(r: DatasetRecord) {
   // Works in any Zotero version (and for "Document" items in older ones).
-  return [`Type: dataset`, r.version && `Version: ${r.version}`, r.doi && `DOI: ${r.doi}`, r.publisher && `Publisher: ${r.publisher}`, `Genre: Data set`]
+  return [`Type: ${isSoftware(r) ? "software" : "dataset"}`, r.version && `Version: ${r.version}`, r.doi && `DOI: ${r.doi}`, r.publisher && `Publisher: ${r.publisher}`, `Genre: ${isSoftware(r) ? "Software" : "Data set"}`]
     .filter(Boolean).join("\n");
 }
 export function toAvailability(r: DatasetRecord) {
@@ -394,4 +397,156 @@ export function decodeShare(s: string): SharePayload | null {
   } catch {
     return null;
   }
+}
+
+// ---------- Retraction / update status (Crossref) ----------
+export type StatusInfo = { updates: { type: string; label?: string; doi: string; date?: string }[] } | null;
+
+/** Checks Crossref update metadata (retractions, corrections). Returns null when the DOI is not in Crossref or has no updates. */
+export async function checkStatus(doi: string): Promise<StatusInfo> {
+  try {
+    const r = await fetch(`https://api.crossref.org/works/${encodeURIComponent(doi)}`);
+    if (!r.ok) return null;
+    const m = (await r.json()).message ?? {};
+    const ups = (Array.isArray(m["update-to"]) ? m["update-to"] : [])
+      .map((u: any) => ({
+        type: String(u.type ?? "update"),
+        label: u.label ?? undefined,
+        doi: String(u.DOI ?? ""),
+        date: Array.isArray(u.updated) ? u.updated.filter((x: any) => typeof x === "number").join("-") : undefined,
+      }))
+      .filter((u: any) => u.doi);
+    return ups.length ? { updates: ups } : null;
+  } catch {
+    return null;
+  }
+}
+
+// ---------- Data availability statement presets ----------
+const citeAuthors = (r: DatasetRecord) =>
+  r.creators.length
+    ? join(r.creators.map((c) => (c.family ? `${c.family}, ${c.given ?? ""}`.replace(/, $/, "") : c.literal ?? "")), "&")
+    : r.publisher || "the authors";
+const fullRef = (r: DatasetRecord) =>
+  `${citeAuthors(r)} (${r.year}). ${r.title}${r.version ? ` (Version ${r.version})` : ""}. ${r.publisher}. ${idLink(r)}.`;
+
+export type DasPreset = { id: string; label: string; hint: string; build: (r: DatasetRecord) => string };
+
+export const DAS_PRESETS: DasPreset[] = [
+  { id: "generic", label: "Generic", hint: "Works for any journal or funder", build: toAvailability },
+  { id: "nih", label: "NIH DMS", hint: "NIH Data Management & Sharing Plan (2026 format)", build: (r) => `The dataset(s) generated and/or analysed during the current study are available in the ${r.publisher || "[repository]"} repository, ${idLink(r)}${r.version ? ` (version ${r.version})` : ""}. ${r.license ? `The data are shared under a ${r.license} licence. ` : ""}Reference: ${fullRef(r)}.` },
+  { id: "nsf", label: "NSF", hint: "NSF data management plan (Research.gov)", build: (r) => `Data supporting the findings of this study are preserved and openly available in ${r.publisher || "[repository]"} at ${idLink(r)}${r.version ? ` (version ${r.version})` : ""}, in formats that allow verification and reanalysis by other researchers. Reference: ${fullRef(r)}.` },
+  { id: "plos", label: "PLOS", hint: "PLOS data availability policy", build: (r) => `All relevant data are available from the ${r.publisher || "[repository]"} database (DOI: ${r.doi || idLink(r)}${r.version ? `, version ${r.version}` : ""}). Reference: ${fullRef(r)}.` },
+  { id: "nature", label: "Nature Portfolio", hint: "Nature journals' data availability statement", build: (r) => `The datasets generated and/or analysed during the current study are available in the ${r.publisher || "[repository]"} repository, ${idLink(r)}${r.version ? ` (version ${r.version})` : ""}. Reference: ${fullRef(r)}.` },
+  { id: "elsevier", label: "Elsevier", hint: "Elsevier research data statement", build: (r) => `The data that support the findings of this study are openly available in ${r.publisher || "[repository]"} at ${idLink(r)}${r.version ? ` (version ${r.version})` : ""}, reference ${fullRef(r)}.` },
+];
+
+// ---------- Software citation mode (CITATION.cff / GitHub / software DOIs) ----------
+/** Minimal parser for the subset of CITATION.cff (YAML) that matters for citations. */
+export function parseCff(text: string): DatasetRecord | null {
+  if (!/^cff-version:/m.test(text.trim())) return null;
+  const scalar = (k: string) => new RegExp(`^${k}:\\s*(.+?)\\s*$`, "m").exec(text)?.[1]?.replace(/^["']|["']$/g, "");
+  const FIELD: Record<string, string> = { "family-names": "family", "given-names": "given", name: "literal", alias: "alias", orcid: "orcid" };
+  const kv = (l: string) => {
+    const m = /^\s*(family-names|given-names|name|alias|orcid):\s*(.*?)\s*$/.exec(l);
+    return m ? { k: FIELD[m[1]], v: m[2].replace(/^["']|["']$/g, "") } : null;
+  };
+  const authors: Creator[] = [];
+  let cur: any = {};
+  let inAuthors = false;
+  const push = () => {
+    const c = cur;
+    const creator: Creator = c.family || c.given
+      ? { family: c.family, given: c.given, orcid: c.orcid }
+      : { literal: c.literal ?? c.alias, orcid: c.orcid };
+    if (creator.family || creator.given || creator.literal) authors.push(creator);
+    cur = {};
+  };
+  for (const line of text.split(/\r?\n/)) {
+    if (/^authors:/.test(line)) { inAuthors = true; continue; }
+    if (!inAuthors) continue;
+    if (/^\S/.test(line)) { push(); break; }
+    if (/^\s*-\s*/.test(line)) { push(); const p = kv(line.replace(/^\s*-\s*/, "")); if (p) cur[p.k] = p.v; continue; }
+    const p = kv(line); if (p) cur[p.k] = p.v;
+  }
+  push();
+  const title = scalar("title") ?? "";
+  if (!title) return null;
+  const released = scalar("date-released") ?? "";
+  const repoUrl = scalar("repository-code") ?? scalar("repository") ?? scalar("url") ?? "";
+  return {
+    ...emptyRecord(),
+    title,
+    creators: authors,
+    year: released.slice(0, 4) || String(new Date().getFullYear()),
+    publisher: /github/i.test(repoUrl) ? "GitHub" : "Zenodo",
+    version: scalar("version") ?? "",
+    doi: (scalar("doi") ?? "").toLowerCase(),
+    url: repoUrl,
+    resourceType: "Software",
+    description: scalar("abstract") ?? "",
+    license: scalar("license") ?? "",
+    identifierType: "DOI",
+  };
+}
+
+/** Fetch software metadata from a GitHub repo (CITATION.cff, then the GitHub API), a software DOI, or pasted CFF text. */
+export async function fetchSoftware(input: string): Promise<{ record: DatasetRecord; source: string }> {
+  const t = input.trim();
+  if (/^cff-version:/m.test(t)) {
+    const rec = parseCff(t);
+    if (!rec) throw new Error("Couldn't parse that CITATION.cff. Check that it is valid YAML with a title.");
+    return { record: rec, source: "Pasted CITATION.cff" };
+  }
+  const gh = t.match(/github\.com\/([\w.-]+)\/([\w.-]+)/i);
+  if (gh) {
+    const owner = gh[1], repo = gh[2].replace(/\.git$/, "");
+    for (const p of ["CITATION.cff", "citation.cff"]) {
+      try {
+        const r = await fetch(`https://raw.githubusercontent.com/${owner}/${repo}/HEAD/${p}`);
+        if (r.ok) {
+          const rec = parseCff(await r.text());
+          if (rec) return { record: rec, source: `CITATION.cff · github.com/${owner}/${repo}` };
+        }
+      } catch {}
+    }
+    const r = await fetch(`https://api.github.com/repos/${owner}/${repo}`);
+    if (r.ok) {
+      const j = await r.json();
+      return {
+        record: {
+          ...emptyRecord(),
+          title: j.name ?? repo,
+          creators: [{ literal: j.owner?.login ?? owner }],
+          year: String(j.created_at ?? "").slice(0, 4),
+          publisher: "GitHub",
+          url: j.html_url ?? `https://github.com/${owner}/${repo}`,
+          resourceType: "Software",
+          description: j.description ?? "",
+        },
+        source: "GitHub API — ask the maintainers to add a CITATION.cff for a richer citation",
+      };
+    }
+    if (r.status === 404) throw new Error(`Repository ${owner}/${repo} not found or private. Paste its CITATION.cff instead.`);
+  }
+  const doi = extractDoi(t);
+  if (doi) {
+    const { record, source } = await fetchByDoi(doi);
+    return { record: { ...record, resourceType: record.resourceType || "Software" }, source };
+  }
+  throw new Error("Paste a GitHub repo link, a software DOI (e.g. a Zenodo release), or the raw CITATION.cff text.");
+}
+
+// ---------- ORCID author pickup ----------
+export async function fetchOrcidAuthor(input: string): Promise<Creator> {
+  const id = input.trim().replace(/^https?:\/\/orcid\.org\//i, "").replace(/[^0-9Xx]/g, "").toUpperCase();
+  if (!/^\d{15}[\dX]$/.test(id)) throw new Error("That doesn't look like an ORCID iD (expected a form like 0000-0002-1825-0097).");
+  const r = await fetch(`https://pub.orcid.org/v3.0/${id}/record`, { headers: { Accept: "application/json" } });
+  if (!r.ok) throw new Error(`ORCID lookup failed (${r.status}). Check the iD and try again.`);
+  const j = await r.json();
+  const n = j?.person?.name ?? {};
+  const family = n["family-names"] ?? undefined;
+  const given = n["given-names"] ?? undefined;
+  const credit = j?.person?.["credit-names"]?.[0]?.["credit-name"]?.value ?? undefined;
+  return { family, given, literal: family || given ? undefined : credit ?? id, orcid: `https://orcid.org/${id}` };
 }
