@@ -754,7 +754,7 @@ function shareCard(record: DatasetRecord, s: number) {
   track("share_card");
 }
 
-const BOOKMARKLET = "(function(){var m=document.querySelector('meta[name=\"citation_doi\"]');var d=m?m.content:((window.getSelection()+'').match(/10\\.\\d{4,9}\\/\\S+/)||[])[0];if(!d)d=prompt('No DOI found on this page. Paste a DOI or dataset URL:');if(d){d=String(d).replace(/[.)]+$/,'');window.open('https://citationlx.online/?doi='+encodeURIComponent(d),'_blank')}})();";
+const BOOKMARKLET = "javascript:(function(){var d='';var ms=document.querySelectorAll('meta[name=\"citation_doi\"],meta[name=\"DC.DOI\"],meta[name=\"prism.doi\"]');for(var i=0;i<ms.length;i++){var c=(ms[i].content||'').match(/10\\.\\d{4,9}\\/\\S+/);if(c){d=c[0];break}}if(!d)d=((window.getSelection()+'').match(/10\\.\\d{4,9}\\/\\S+/)||[])[0];if(!d)d=prompt('No DOI found on this page. Paste a DOI or dataset URL:');if(d){d=String(d).replace(/[.)]+$/,'');window.open('https://citationlx.online/?doi='+encodeURIComponent(d),'_blank')}})();";
 
 function Bookmarklet() {
   const [copied, setCopied] = useState(false);
