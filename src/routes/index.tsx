@@ -16,7 +16,7 @@ const FAQS: { q: string; a: string }[] = [
   },
   {
     q: "Which citation styles does CitationLX support?",
-    a: "Seven styles: APA 7, DataCite, Chicago, MLA 9, Harvard, IEEE and Vancouver. You can switch between them instantly and copy or download the result.",
+    a: "Seven styles: APA 7, DataCite, Chicago, MLA 9, Harvard,IIEE, and Vancouver. You can switch between them instantly and copy or download the result.",
   },
   {
     q: "What if my dataset has no DOI?",
@@ -159,7 +159,7 @@ function Index() {
           <a href="#how-it-works" className="text-muted-foreground transition hover:text-foreground">How it works</a>
           <a href="#faq" className="text-muted-foreground transition hover:text-foreground">FAQ</a>
           <a href="/guides" className="text-muted-foreground transition hover:text-foreground">Guides</a>
-          <a href="mailto:cantrell22@hotmail.com?subject=Feature%20suggestion%20for%20CitationLX" className="btn-ghost">Suggest a feature</a>
+            <a href="#bookmarklet" className="text-muted-foreground transition hover:text-foreground">Browser button</a>          <a href="mailto:cantrell22@hotmail.com?subject=Feature%20suggestion%20for%20CitationLX" className="btn-ghost">Suggest a feature</a>
           <ThemeToggle />
         </nav>
         <span className="flex items-center gap-2 md:hidden">
@@ -205,7 +205,7 @@ function Index() {
               <p className="mt-2">Paste DOIs, URLs, or a whole .bib file on the left. We normalise DOIs, drop duplicates (the same dataset cited as doi:, dx.doi.org and a Zenodo link), re-fetch authoritative metadata and give you one clean file.</p>
             </div>
           ) : record ? (
-            <Workbench record={record} setRecord={setRecord} origType={origType} changes={changes} source={source} versions={versions} onSwitchDoi={switchDoi} />
+            <Workbench record={record} setRecord={setRecord} origType={origType} changes={changes} source={source} versions={version} onSwitchDoi={switchDoi} />
           ) : (
             <Empty />
           )}
@@ -221,12 +221,12 @@ function Index() {
             ["2", "Diagnose & repair", "CitationLX checks the record against the DataCite or Crossref registry, fixes the resource type, version, authors and year, and shows you exactly which fields changed, with a citation health score. It also checks Crossref for retractions and updates before you cite."],
             ["3", "Export", "Copy a journal-ready citation in seven styles, download clean BibLaTeX, RIS or CSL JSON, and generate a funder-ready Data Availability Statement (NIH DMS, NSF, PLOS, Nature, Elsevier) or Zotero Extra snippet."],
           ].map(([n, title, body]) => (
-            <div key={n} className="panel p-6">
-              <div className="font-display text-4xl font-semibold text-accent">{n}</div>
-              <h3 className="mt-2 text-xl">{title}</h3>
-              <p className="mt-2 text-sm leading-relaxed text-muted-foreground">{body}</p>
-            </div>
-          ))}
+              <div key={n} className="panel p-6">
+                <div className="font-display text-4xl font-semibold text-accent">{n}</div>
+                <h3 className="mt-2 text-xl">{title}</h3>
+                <p className="mt-2 text-sm leading-relaxed text-muted-foreground">{body}</p>
+              </div>
+            ))}
         </div>
         <div className="mt-4 grid gap-3 text-sm text-muted-foreground md:grid-cols-3">
           {[
@@ -247,13 +247,13 @@ function Index() {
         <h2 className="mt-2 text-3xl">Frequently asked questions</h2>
         <div className="mt-6 grid gap-3 md:grid-cols-2">
           {FAQS.map((f) => (
-            <details key={f.q} className="panel group p-5">
-              <summary className="cursor-pointer list-none font-medium leading-snug marker:hidden">
-                <span className="mr-2 inline-block transition group-open:rotate-90">▸</span>{f.q}
-              </summary>
-              <p className="mt-3 text-sm leading-relaxed text-muted-foreground">{f.a}</p>
-            </details>
-          ))}
+              <details key={f.q} className="panel group p-5">
+                <summary className="cursor-pointer list-none font-medium leading-snug marker:hidden">
+                  <span className="mr-2 inline-block transition group-open:rotate-90">▸</span>{f.q}
+                </summary>
+                <p className="mt-3 text-sm leading-relaxed text-muted-foreground">{f.a}</p>
+              </details>
+            ))}
         </div>
       </section>
 
@@ -287,11 +287,11 @@ function Index() {
         <p>Metadata from DataCite & Crossref public APIs. Runs entirely in your browser — nothing is stored.</p>
         <p className="mt-2">
           <a href="#how-it-works" className="underline-offset-2 hover:underline">How it works</a>
-          { 0۠"}
+          {" · "}
           <a href="#faq" className="underline-offset-2 hover:underline">FAQ</a>
           {" · "}
           <a href="#bookmarklet" className="underline-offset-2 hover:underline">Bookmarklet</a>
-          {" · "}
+         {" · "}
           <a href="/guides" className="underline-offset-2 hover:underline">Guides</a>
           {" · "}
           <a href="mailto:cantrell22@hotmail.com?subject=Feature%20suggestion%20for%20CitationLX" className="underline-offset-2 hover:underline">Suggest a feature</a>
@@ -311,11 +311,11 @@ function Empty() {
         <p>https://github.com/pola-rs/polars</p>
       </div>
       <ul className="mt-8 grid gap-3 text-sm text-muted-foreground md:grid-cols-2">
-        <li>✦ Detects datasets mis-typed as journal articles</li>
+        <li>✆ Detects datasets mis-typed as journal articles</li>
         <li>✆ Diffs your import against authoritative metadata</li>
-        <li>✦ Generates a journal-ready Data Availability Statement</li>
-        <li>✦ Zotero "Extra" field snippet for stubborn libraries</li>
-        <li>✦ Software mode: GitHub repos & CITATION.cff</li>
+        <li>✆ Generates a journal-ready Data Availability Statement</li>
+        <li>✆ Zotero "Extra" field snippet for stubborn libraries</li>
+        <li>✆ Software mode: GitHub repos & CITATION.cff</li>
         <li>✆ Warns if the record was retracted or updated</li>
       </ul>
     </div>
@@ -361,10 +361,10 @@ function SoftwareInput({ onLoad }: { onLoad: (r: DatasetRecord, s: string, ot?: 
     <div className="space-y-3">
       <input className="field font-mono" placeholder="github.com/org/repo or a software DOI" value={v}
         onChange={(e) => setV(e.target.value)} onKeyDown={(e) => e.key === "Enter" && go()} />
-      <textarea className="field h-28 font-mono text-xs" placeholder={"…or paste a CITATION.cff:\ncff-version: 1.2.0\ntitle: My Software\nauthors:\n  - family-names: Doe"} value={v} onChange={(e) => setV(e.target.value)} />
+      <textarea className="field h-28 font-mono text-xs" placeholder={"… or paste a CITATION.cff:\ncff-version: 1.2.0\ntitle: My Software\nauthors:\n  - family-names: Doe"} value={v} onChange={(e) => setV(e.target.value)} />
       <button className="btn w-full justify-center" disabled={busy} onClick={go}>{busy ? "Fetching…" : "Fetch software metadata"}</button>
       {err && <p className="text-sm text-destructive">{err}</p>}
-      <p className="text-xs text-muted-foreground">Reads the repo's CITATION.cff (FORCE11 software citation principles), falls back to the GitHub API, and handles software DOIs such as Zenodo releases.</p>
+      <p className="text-xs text-muted-foreground">Reads the repo's CITATION.cff (FORCE11 software citation principlesGuidelines), falls back to the GitHub API, and handles software DOIs such as Zenodo releases.</p>
     </div>
   );
 }
@@ -477,6 +477,16 @@ function Workbench({ record, setRecord, origType, changes, source, versions, onS
   const cite = apiCite ?? formatCitation(record, style);
   const out = EXPORTS[exp](record);
   const set = (k: keyof DatasetRecord) => (e: any) => setRecord({ ...record, [k]: e.target.value });
+  const shareUrl = () => window.location.origin + "/#r=" + encodeShare({ record, origType, changes: changes as any, source });
+  const shareText = `Fixed dataset citation: ${record.title}`;
+  const nativeShare = async () => {
+    const url = shareUrl();
+    if (navigator.share) {
+      try { await navigator.share({ title: record.title, text: shareText, url }); track("share_native"); return; } catch {}
+    }
+    window.open(`https://wa.me/?text=${encodeURIComponent(shareText + " " + url)}`, "_blank");
+    track("share_link", { via: "whatsapp" });
+  };
 
   return (
     <div className="space-y-6">
@@ -496,6 +506,13 @@ function Workbench({ record, setRecord, origType, changes, source, versions, onS
         {versions && <VersionGuard versions={versions} onSwitchDoi={onSwitchDoi} />}
 
         {status && <StatusBanner status={status} />}
+
+        {/software/i.test(record.resourceType ?? "") && !/CITATION\.cff|GitHub/i.test(source) && (
+          <div className="mt-5 rounded-lg border border-warning/50 bg-warning/10 p-4 text-sm">
+            <b className="font-medium">This DOI is registered as software.</b>{" "}
+            <span className="text-muted-foreground">Switch to the Software / code tab for software-typed exports (@software BibLaTeX, RIS TY - COMP).</span>
+          </div>
+        )}
 
         {changes.length > 0 && (
           <div className="mt-5 rounded-lg bg-muted p-4">
@@ -521,7 +538,7 @@ function Workbench({ record, setRecord, origType, changes, source, versions, onS
               <div><b className="font-medium">{i.field}:</b> {i.message}{i.fix && <span className="block text-muted-foreground">→ {i.fix}</span>}</div>
             </li>
           ))}
-          {issues.every((i) => i.level === "ok") && <li className="text-sm text-success">All checks pass against DataCite & FORCE11 data citation principles.</li>}
+          {issues.every((i) => i.level === "ok") && <li className="text-sm text-success">All checks pass against DataCite & FORCE11 data citation principles</li>}
         </ul>
       </div>
 
@@ -531,7 +548,7 @@ function Workbench({ record, setRecord, origType, changes, source, versions, onS
           <input className="field md:col-span-2" value={record.title} onChange={set("title")} placeholder="Title" />
           <input className="field md:col-span-2" placeholder="Authors (Family, Given; …)"
             value={record.creators.map((c) => (c.family ? `${c.family}, ${c.given ?? ""}` : c.literal)).join("; ")}
-            onChange={(e) => setRecord({ ...record, creators: e.target.value.split(";").map((a) => a.trim()).filter(Boolean).map((a) => a.includes(",") ? { family: a.split(",")[0].trim(), given: a.split(",").slice(1).join(",").trim() } : { literal: a }) })} />
+            onChange={(e) => setRecord({ ...record, creators: e.target.value.split(";").map((a) => a.trim()).filter(Boolean).map((a) => a.includes(",") ? { family: a.split(",")[0].trim(), given: a.split(",").slice(1).join(",").trim() } : { literal: a }))} />
           <input className="field min-w-0" value={record.year} onChange={set("year")} placeholder="Year" />
           <input className="field" value={record.version} onChange={set("version")} placeholder="Version" />
           <input className="field" value={record.publisher} onChange={set("publisher")} placeholder="Repository" />
@@ -564,7 +581,14 @@ function Workbench({ record, setRecord, origType, changes, source, versions, onS
           <div className="flex gap-2">
             <button className="btn-ghost" onClick={() => copy(out, "exp")}>{copied === "exp" ? "Copied ✓" : "Copy"}</button>
             <button className="btn-ghost" onClick={() => { download(`dataset.${exp === "RIS" ? "ris" : exp === "CSL JSON" ? "json" : exp === "Zotero Extra" ? "txt" : "bib"}`, out); track("export_download", { format: exp }); }}>Download</button>
-            <button className="btn-ghost" onClick={() => { navigator.clipboard.writeText(window.location.origin + "/#r=" + encodeShare({ record, origType, changes: changes as any, source })); setCopied("share"); setTimeout(() => setCopied(""), 1200); track("share_link"); }}>{copied === "share" ? "Link copied ✓" : "Copy share link"}</button>
+                <div className="flex flex-wrap items-center gap-1">
+                  <button className="btn-ghost" onClick={nativeShare}>{copied === "share" ? "Link copied ✓" : "Share"}</button>
+                  <button className="btn-ghost" onClick={() => { window.open(`https://wa.me/?text=${encodeURIComponent(shareText + " " + shareUrl())}`, "_blank"); track("share_link", { via: "whatsapp" }); }}>WhatsApp</button>
+                  <button className="btn-ghost" onClick={() => { window.open(`https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(shareUrl())}`, "_blank"); track("share_link", { via: "linkedin" }); }}>LinkedIn</button>
+                  <button className="btn-ghost" onClick={() => { window.open(`https://twitter.com/intent/tweet?text=${encodeURIComponent(shareText)}&url=${encodeURIComponent(shareUrl())}`, "_blank"); track("share_link", { via: "x" }); }}>X / Twitter</button>
+                  <button className="btn-ghost" onClick={() => { window.open(`mailto:?subject=${encodeURIComponent("Dataset citation repaired (CitationLX)")}&body=${encodeURIComponent(shareText + "\n" + shareUrl())}`); track("share_link", { via: "email" }); }}>Email</button>
+                  <button className="btn-ghost" onClick={() => { navigator.clipboard.writeText(shareUrl()); setCopied("share"); setTimeout(() => setCopied(""), 1200); track("share_link", { via: "copy" }); }}>{copied === "share" ? "Copied ✓" : "Copy link"}</button>
+                </div>
           </div>
         </div>
         <pre className="mt-4 overflow-x-auto rounded-lg bg-muted p-4 font-mono text-xs leading-relaxed">{out}</pre>
@@ -582,18 +606,18 @@ function VersionGuard({ versions, onSwitchDoi }: { versions: VersionInfo; onSwit
       <div className="mt-5 rounded-lg border border-success/40 bg-success/10 p-4 text-sm">
         <b className="font-medium">Version DOI — good.</b>{" "}
         <span className="text-muted-foreground">This DOI pins the exact version you used, which is what reproducibility guidance recommends. The concept DOI covering all versions is{" "}
-          <a className="underline underline-offset-2" href={`https://doi.org/${versions.conceptDoi}`}>{versions.conceptDoi}</a>.</span>
+          <a className="underline underline-offset-2" href={https://doi.org/${versions.conceptDoi}}>{versions.conceptDoi}</a>.</span>
       </div>
     );
   }
   return (
     <div className="mt-5 rounded-lg border border-warning/50 bg-warning/10 p-4 text-sm">
       <b className="font-medium">Concept DOI — this link always resolves to the latest version.</b>{" "}
-      <span className="text-muted-foreground">If your resuls depend on a specific snapshot of the data, cite a version DOI instead:</span>
+      <span className="text-muted-foreground">If your results depend on a specific snapshot of the data, cite a version DOI instead:</span>
       <div className="mt-2 flex flex-wrap gap-2">
         {versions.versionDois?.slice(0, 6).map((d) => (
           <button key={d} className="btn-ghost" onClick={() => onSwitchDoi(d)}>{d}</button>
-        ))}
+         ))}
       </div>
     </div>
   );
@@ -606,7 +630,7 @@ function StatusBanner({ status }: { status: StatusInfo }) {
         <p key={i} className={i ? "mt-2" : ""}>
           <b className="font-medium">⚠ u.label ?? u.type.charAt(0).toUpperCase() + u.type.slice(1)}</b>
           {u.date ? ` (${u.date})` : ""} · Crossref reports this record was {u.type === "retraction" ? "retracted" : "updated or corrected"}.
-          {u.doi && <> See the <a className="underline underline-offset-2" href={`/doi.org/${u.doi}`}>update notice</a> before citing.</>}
+          {u.doi && <> See the <a className="underline underline-offset-2" href={https://doi.org/${u.doi}}>update notice</a> before citing.</>}
         </p>
       ))}
       <p className="mt-1 text-xs text-muted-foreground">Checked against Crossref update metadata.</p>
@@ -635,6 +659,7 @@ function OrcidPickup({ record, setRecord }: { record: DatasetRecord; setRecord: 
         <input className="field font-mono" placeholder="0000-0002-1825-0097" value={id} onChange={(e) => setId(e.target.value)} onKeyDown={(e) => e.key === "Enter" && go()} />
         <button className="btn shrink-0" disabled={busy} onClick={go}>{busy ? "…" : "Add author"}</button>
       </div>
+      <p className="mt-2 text-xs text-muted-foreground">Paste an ORCID iD (0000-0002-1825-0097 is the demo iD) to pull the verified author name into this record.</p>
       {msg && <p className="mt-2 text-xs text-muted-foreground">{msg}</p>}
     </div>
   );
@@ -656,7 +681,7 @@ function DasPanel({ record, copy, copied }: { record: DatasetRecord; copy: (t: s
         </div>
       </div>
       <p className="mt-3 text-sm leading-relaxed">{text}</p>
-      <button className="btn-ghost mt-4" onClick={() => copy(text, "das")}>{copied === "das" ? "Copied ✓" : "Copy statement"}</button>
+      <button className="btn-ghost mt-4" onClick={() => copy(text, "das"})}>{copied === "das" ? "Copied ✓" : "Copy statement"}</button>
     </div>
   );
 }
