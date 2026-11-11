@@ -549,7 +549,16 @@ function Workbench({ record, setRecord, origType, changes, source, versions, onS
           <input className="field md:col-span-2" value={record.title} onChange={set("title")} placeholder="Title" />
           <input className="field md:col-span-2" placeholder="Authors (Family, Given; …)"
             value={record.creators.map((c) => (c.family ? `${c.family}, ${c.given ?? ""}` : c.literal)).join("; ")}
-            onChange={(e) => setRecord({ ...record, creators: e.target.value.split(";").map((a) => a.trim()).filter(Boolean).map((a) => a.includes(",") ? { family: a.split(",")[0].trim(), given: a.split(",").slice(1).join(",").trim() } : { literal: a }))} />
+            onChange={(e) =>
+              setRecord({
+                ...record,
+                creators: e.target.value
+                  .split(";").map((a) => a.trim()).filter(Boolean)
+                  .map((a) => (a.includes(",")
+                    ? { family: a.split(",")[0].trim(), given: a.split(",").slice(1).join(",").trim() }
+                    : { literal: a })),
+              })
+            } />
           <input className="field min-w-0" value={record.year} onChange={set("year")} placeholder="Year" />
           <input className="field" value={record.version} onChange={set("version")} placeholder="Version" />
           <input className="field" value={record.publisher} onChange={set("publisher")} placeholder="Repository" />
