@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import {
   type DatasetRecord, type Style, EXPORTS, STYLES, diff, download, emptyRecord, extractDoi,
   fetchByDoi, fetchStyledCitation, formatCitation, parseRecord, score, validate, toBiblatex, toRis, toCsl,
@@ -56,16 +56,24 @@ const FAQS: { q: string; a: string }[] = [
   },
 ];
 
-const FEATURES: { icon: string; title: string; body: string }[] = [
-  { icon: "🛡️", title: "Version-DOI guard", body: "Zenodo, Dryad and figshare records are checked for concept vs version DOIs, with one-click switching to the exact snapshot your results depend on." },
-  { icon: "⚠️", title: "Retraction & update warnings", body: "Every DOI fetch checks Crossref's update metadata, so retracted or corrected records are flagged — with a link to the notice — before you cite them." },
-  { icon: "💻", title: "Software & code mode", body: "Paste a GitHub repo or CITATION.cff (or a Zenodo release DOI) and get proper software citations: @software BibLaTeX, RIS type COMP and CSL software." },
-  { icon: "🎓", title: "ORCID author pickup", body: "Paste an ORCID iD and the verified name is pulled from the ORCID public API, fixing scrambled and organisational names at the source." },
-  { icon: "🔖", title: "“Fix this citation” bookmarklet", body: "Drag one button to your bookmarks bar. On any repository or journal page, a single click finds the DOI and opens it in CitationLX — no extension needed." },
-  { icon: "🌙", title: "Installable app with dark mode", body: "CitationLX is a Progressive Web App: install it from your browser menu, keep working offline, and flip to dark mode for late-night writing sessions." },
-  { icon: "✒️", title: "Seven citation styles", body: "APA 7, DataCite, Chicago, MLA 9, Harvard, IEEE and Vancouver — rendered by the DataCite registry where possible, not approximated." },
-  { icon: "📚", title: "Batch & dedupe", body: "Paste a whole reference list or .bib file: duplicates are dropped, every DOI re-fetched, and one clean .bib, .ris or CSL JSON file comes out." },
-  { icon: "🔒", title: "Private by design", body: "Everything runs in your browser. Nothing you paste is ever uploaded or stored — the public registries are queried directly from your device." },
+function I({ children }: { children: ReactNode }) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" className="h-5 w-5" aria-hidden="true">
+      {children}
+    </svg>
+  );
+}
+
+const FEATURES: { icon: ReactNode; title: string; body: string }[] = [
+  { icon: (<I><path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z" /><path d="m9 12 2 2 4-4" /></I>), title: "Version-DOI guard", body: "Zenodo, Dryad and figshare records are checked for concept vs version DOIs, with one-click switching to the exact snapshot your results depend on." },
+  { icon: (<I><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z" /><path d="M12 9v4" /><path d="M12 17h.01" /></I>), title: "Retraction & update warnings", body: "Every DOI fetch checks Crossref's update metadata, so retracted or corrected records are flagged — with a link to the notice — before you cite them." },
+  { icon: (<I><polyline points="16 18 22 12 16 6" /><polyline points="8 6 2 12 8 18" /></I>), title: "Software & code mode", body: "Paste a GitHub repo or CITATION.cff (or a Zenodo release DOI) and get proper software citations: @software BibLaTeX, RIS type COMP and CSL software." },
+  { icon: (<I><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" /><circle cx="9" cy="7" r="4" /><polyline points="16 11 18 13 22 9" /></I>), title: "ORCID author pickup", body: "Paste an ORCID iD and the verified name is pulled from the ORCID public API, fixing scrambled and organisational names at the source." },
+  { icon: (<I><path d="m19 21-7-4-7 4V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v16z" /></I>), title: "“Fix this citation” bookmarklet", body: "Drag one button to your bookmarks bar. On any repository or journal page, a single click finds the DOI and opens it in CitationLX — no extension needed." },
+  { icon: (<I><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z" /></I>), title: "Installable app with dark mode", body: "CitationLX is a Progressive Web App: install it from your browser menu, keep working offline, and flip to dark mode for late-night writing sessions." },
+  { icon: (<I><polyline points="4 7 4 4 20 4 20 7" /><line x1="9" x2="15" y1="20" y2="20" /><line x1="12" x2="12" y1="4" y2="20" /></I>), title: "Seven citation styles", body: "APA 7, DataCite, Chicago, MLA 9, Harvard, IEEE and Vancouver — rendered by the DataCite registry where possible, not approximated." },
+  { icon: (<I><polygon points="12 2 2 7 12 12 22 7 12 2" /><polyline points="2 17 12 22 22 17" /><polyline points="2 12 12 17 22 12" /></I>), title: "Batch & dedupe", body: "Paste a whole reference list or .bib file: duplicates are dropped, every DOI re-fetched, and one clean .bib, .ris or CSL JSON file comes out." },
+  { icon: (<I><rect width="18" height="11" x="3" y="11" rx="2" ry="2" /><path d="M7 11V7a5 5 0 0 1 10 0v4" /></I>), title: "Private by design", body: "Everything runs in your browser. Nothing you paste is ever uploaded or stored — the public registries are queried directly from your device." },
 ];
 
 const FAQ_SCHEMA = {
@@ -244,7 +252,7 @@ function Index() {
         <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {FEATURES.map((f) => (
             <div key={f.title} className="panel group p-6 transition duration-200 hover:-translate-y-1 hover:border-accent/50">
-              <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-accent/10 text-xl transition group-hover:scale-110">{f.icon}</div>
+              <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-accent/10 text-accent transition group-hover:scale-110">{f.icon}</div>
               <h3 className="mt-4 text-lg">{f.title}</h3>
               <p className="mt-2 text-sm leading-relaxed text-muted-foreground">{f.body}</p>
             </div>
@@ -313,6 +321,10 @@ function Index() {
           <a href="/guides" className="underline-offset-2 hover:underline">Guides</a>
           {" · "}
           <a href="mailto:cantrell22@hotmail.com?subject=Feature%20suggestion%20for%20CitationLX" className="underline-offset-2 hover:underline">Suggest a feature</a>
+        </p>
+        <p className="mt-3">
+          CitationLX is free. If it saved your bibliography,{" "}
+          <a href="https://www.paypal.com/donate/?business=georgec.ignite%40gmail.com&currency_code=USD&item_name=Buy%20the%20CitationLX%20maintainer%20a%20coffee&source=url" target="_blank" rel="noopener noreferrer" className="underline underline-offset-2 hover:text-foreground">buy the maintainer a coffee</a>.
         </p>
       </footer>
     </div>
