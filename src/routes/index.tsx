@@ -738,7 +738,23 @@ function shareCard(record: DatasetRecord, s: number) {
     else line = t;
   }
   if (line && lines.length < 2) lines.push(line);
-  lines.slice(0, 2).forEach((l, i) => x.fillText(l, 60, 250 + i * 56));
+  const fit = (t: string, maxW: number) => {
+    if (x.measureText(t).width <= maxW) return t;
+    while (t.length > 1 && x.measureText(t + "…").width > maxW) t = t.slice(0, -1);
+    return t + "…";
+  };
+  lines.slice(0, 2).forEach((l, i) => x.fillText(fit(l, 1080), 60, 250 + i * 56));
+  const families = (record.creators ?? []).map((cr) => cr.family || cr.literal || "").filter(Boolean);
+  const metaParts = [
+    families.length ? families.slice(0, 3).join(", ") + (families.length > 3 ? " et al." : "") : "",
+    record.year || "",
+    record.version ? `version ${record.version}` : "",
+    record.doi || record.url || "",
+  ].filter(Boolean);
+  if (metaParts.length) {
+    x.fillStyle = "#8f8a99"; x.font = "26px Inter, sans-serif";
+    x.fillText(fit(metaParts.join("  ·  "), 1080), 60, 250 + lines.length * 56 + 18);
+  }
   x.fillStyle = "#d07a3a"; x.font = "700 170px 'Space Grotesk', Inter, sans-serif";
   const scoreTxt = String(s);
   x.fillText(scoreTxt, 60, 540);
