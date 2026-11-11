@@ -4,6 +4,7 @@ import {
   type DatasetRecord, type Style, EXPORTS, STYLES, diff, download, emptyRecord, extractDoi,
   fetchByDoi, fetchStyledCitation, formatCitation, parseRecord, score, toAvailability, validate, toBiblatex, toRis, toCsl,
 } from "@/lib/citation";
+import { track } from "@/lib/analytics";
 
 const FAQS: { q: string; a: string }[] = [
   {
@@ -124,7 +125,7 @@ function Index() {
         <div className="space-y-4">
           <nav className="panel grid grid-cols-2 gap-1 p-1">
             {TABS.map(([id, label]) => (
-              <button key={id} onClick={() => setTab(id)}
+              <button key={id} onClick={() => { setTab(id); track("tab_change", { tab: id }); }}
                 className={`rounded-md px-3 py-2 text-left text-sm transition ${tab === id ? "bg-primary text-primary-foreground" : "hover:bg-muted"}`}>
                 {label}
               </button>
@@ -240,8 +241,8 @@ function DoiInput({ onLoad }: { onLoad: (r: DatasetRecord, s: string, ot?: strin
     const doi = extractDoi(v);
     if (!doi) return setErr("No DOI found in that input. Repository pages (Zenodo, Dryad, figshare) usually show one — or use the “No DOI” tab to build the citation manually.");
     setErr(""); setBusy(true);
-    try { const { record, source, rawType } = await fetchByDoi(doi); onLoad(record, source, rawType); }
-    catch (e: any) { setErr(`${e.message} — you can also switch to the “No DOI” tab and enter the details manually.`); }
+    try { const { record, source, rawType } = await fetchByDoi(doi); track("doi_fetch", { doi }); onLoad(record, source, rawType); }
+    catch (e: any) { track("doi_fetch_error"); setErr(`${e.message} — you can also switch to the “No DOI” tab and enter the details manually.`); }
     finally { setBusy(false); }
   };
   return (
@@ -280,6 +281,7 @@ function RepairInput({ onLoad }: { onLoad: (r: DatasetRecord, s: string, ot?: st
         src = `${p.format} repaired against registry`;
       } catch {}
     }
+    track("repair_run", { format: p.format });
     onLoad(fixed, src, p.originalType, diff(p.record, fixed));
     setBusy(false);
   };
@@ -334,7 +336,7 @@ function Workbench({ record, setRecord, origType, changes, source }: {
   const [style, setStyle] = useState<Style>("APA 7");
   const [exp, setExp] = useState<keyof typeof EXPORTS>("BibLaTeX");
   const [copied, setCopied] = useState("");
-  const copy = (t: string, id: string) => { navigator.clipboard.writeText(t.replace(/\*/g, "")); setCopied(id); setTimeout(() => setCopied(""), 1200); };
+  const copy = (t: string, id: string) => { navigator.clipboard.writeText(t.replace(/\*/g, "")); setCopied(id); setTimeout(() => setCopied(""), 1200); track("copy", { what: id }); };
   const [apiCite, setApiCite] = useState<string | null>(null);
   const [citeLoading, setCiteLoading] = useState(false);
   useEffect(() => {
@@ -429,7 +431,7 @@ function Workbench({ record, setRecord, origType, changes, source }: {
           </div>
           <div className="flex gap-2">
             <button className="btn-ghost" onClick={() => copy(out, "exp")}>{copied === "exp" ? "Copied ✓" : "Copy"}</button>
-            <button className="btn-ghost" onClick={() => download(`dataset.${exp === "RIS" ? "ris" : exp === "CSL JSON" ? "json" : exp === "Zotero Extra" ? "txt" : "bib"}`, out)}>Download</button>
+            <button className="btn-ghost" onClick={() => { download(`dataset.${exp === "RIS" ? "ris" : exp === "CSL JSON" ? "json" : exp === "Zotero Extra" ? "txt" : "bib"}`, out); track("export_download", { format: exp }); }}>Download</button>
           </div>
         </div>
         <pre className="mt-4 overflow-x-auto rounded-lg bg-muted p-4 font-mono text-xs leading-relaxed">{out}</pre>
@@ -457,6 +459,7 @@ function Batch() {
   const [busy, setBusy] = useState(false);
   const run = async () => {
     setBusy(true);
+    track("batch_run");
     const chunks = v.includes("@") ? v.split(/(?=@\w+\s*\{)/) : v.split(/\n+/);
     const seen = new Map<string, number>();
     const base: Row[] = chunks.map((c) => c.trim()).filter(Boolean).map((c, i) => {
