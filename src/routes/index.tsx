@@ -16,7 +16,7 @@ const FAQS: { q: string; a: string }[] = [
   },
   {
     q: "Which citation styles does CitationLX support?",
-    a: "Seven styles: APA 7, DataCite, Chicago, MLA 9, Harvard,IIEE, and Vancouver. You can switch between them instantly and copy or download the result.",
+    a: "Seven styles: APA 7, DataCite, Chicago, MLA 9, Harvard, IEEE, and Vancouver. You can switch between them instantly and copy or download the result.",
   },
   {
     q: "What if my dataset has no DOI?",
@@ -159,7 +159,8 @@ function Index() {
           <a href="#how-it-works" className="text-muted-foreground transition hover:text-foreground">How it works</a>
           <a href="#faq" className="text-muted-foreground transition hover:text-foreground">FAQ</a>
           <a href="/guides" className="text-muted-foreground transition hover:text-foreground">Guides</a>
-            <a href="#bookmarklet" className="text-muted-foreground transition hover:text-foreground">Browser button</a>          <a href="mailto:cantrell22@hotmail.com?subject=Feature%20suggestion%20for%20CitationLX" className="btn-ghost">Suggest a feature</a>
+          <a href="#bookmarklet" className="text-muted-foreground transition hover:text-foreground">Browser button</a>
+          <a href="mailto:cantrell22@hotmail.com?subject=Feature%20suggestion%20for%20CitationLX" className="btn-ghost">Suggest a feature</a>
           <ThemeToggle />
         </nav>
         <span className="flex items-center gap-2 md:hidden">
@@ -205,7 +206,7 @@ function Index() {
               <p className="mt-2">Paste DOIs, URLs, or a whole .bib file on the left. We normalise DOIs, drop duplicates (the same dataset cited as doi:, dx.doi.org and a Zenodo link), re-fetch authoritative metadata and give you one clean file.</p>
             </div>
           ) : record ? (
-            <Workbench record={record} setRecord={setRecord} origType={origType} changes={changes} source={source} versions={version} onSwitchDoi={switchDoi} />
+            <Workbench record={record} setRecord={setRecord} origType={origType} changes={changes} source={source} versions={versions} onSwitchDoi={switchDoi} />
           ) : (
             <Empty />
           )}
@@ -291,7 +292,7 @@ function Index() {
           <a href="#faq" className="underline-offset-2 hover:underline">FAQ</a>
           {" · "}
           <a href="#bookmarklet" className="underline-offset-2 hover:underline">Bookmarklet</a>
-         {" · "}
+          {" · "}
           <a href="/guides" className="underline-offset-2 hover:underline">Guides</a>
           {" · "}
           <a href="mailto:cantrell22@hotmail.com?subject=Feature%20suggestion%20for%20CitationLX" className="underline-offset-2 hover:underline">Suggest a feature</a>
@@ -339,7 +340,7 @@ function DoiInput({ onLoad }: { onLoad: (r: DatasetRecord, s: string, ot?: strin
       <input className="field font-mono" placeholder="10.5281/zenodo.… or URL" value={v}
         onChange={(e) => setV(e.target.value)} onKeyDown={(e) => e.key === "Enter" && go()} />
       <button className="btn w-full justify-center" disabled={busy} onClick={go}>{busy ? "Fetching…" : "Fetch metadata"}</button>
-      {err && <p className="text-sm text-destructive">{err}</p>}}
+      {err && <p className="text-sm text-destructive">{err}</p>}
     </div>
   );
 }
@@ -364,7 +365,7 @@ function SoftwareInput({ onLoad }: { onLoad: (r: DatasetRecord, s: string, ot?: 
       <textarea className="field h-28 font-mono text-xs" placeholder={"… or paste a CITATION.cff:\ncff-version: 1.2.0\ntitle: My Software\nauthors:\n  - family-names: Doe"} value={v} onChange={(e) => setV(e.target.value)} />
       <button className="btn w-full justify-center" disabled={busy} onClick={go}>{busy ? "Fetching…" : "Fetch software metadata"}</button>
       {err && <p className="text-sm text-destructive">{err}</p>}
-      <p className="text-xs text-muted-foreground">Reads the repo's CITATION.cff (FORCE11 software citation principlesGuidelines), falls back to the GitHub API, and handles software DOIs such as Zenodo releases.</p>
+      <p className="text-xs text-muted-foreground">Reads the repo's CITATION.cff (FORCE11 software citation principles Guidelines), falls back to the GitHub API, and handles software DOIs such as Zenodo releases.</p>
     </div>
   );
 }
@@ -578,18 +579,18 @@ function Workbench({ record, setRecord, origType, changes, source, versions, onS
               <button key={k} onClick={() => setExp(k)} className={`rounded-full px-3 py-1 text-xs ${exp === k ? "bg-primary text-primary-foreground" : "bg-muted"}`}>{k}</button>
             ))}
           </div>
-          <div className="flex gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             <button className="btn-ghost" onClick={() => copy(out, "exp")}>{copied === "exp" ? "Copied ✓" : "Copy"}</button>
             <button className="btn-ghost" onClick={() => { download(`dataset.${exp === "RIS" ? "ris" : exp === "CSL JSON" ? "json" : exp === "Zotero Extra" ? "txt" : "bib"}`, out); track("export_download", { format: exp }); }}>Download</button>
-                <div className="flex flex-wrap items-center gap-1">
-                  <button className="btn-ghost" onClick={nativeShare}>{copied === "share" ? "Link copied ✓" : "Share"}</button>
-                  <button className="btn-ghost" onClick={() => { window.open(`https://wa.me/?text=${encodeURIComponent(shareText + " " + shareUrl())}`, "_blank"); track("share_link", { via: "whatsapp" }); }}>WhatsApp</button>
-                  <button className="btn-ghost" onClick={() => { window.open(`https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(shareUrl())}`, "_blank"); track("share_link", { via: "linkedin" }); }}>LinkedIn</button>
-                  <button className="btn-ghost" onClick={() => { window.open(`https://twitter.com/intent/tweet?text=${encodeURIComponent(shareText)}&url=${encodeURIComponent(shareUrl())}`, "_blank"); track("share_link", { via: "x" }); }}>X / Twitter</button>
-                  <button className="btn-ghost" onClick={() => { window.open(`mailto:?subject=${encodeURIComponent("Dataset citation repaired (CitationLX)")}&body=${encodeURIComponent(shareText + "\n" + shareUrl())}`); track("share_link", { via: "email" }); }}>Email</button>
-                  <button className="btn-ghost" onClick={() => { navigator.clipboard.writeText(shareUrl()); setCopied("share"); setTimeout(() => setCopied(""), 1200); track("share_link", { via: "copy" }); }}>{copied === "share" ? "Copied ✓" : "Copy link"}</button>
-                </div>
           </div>
+        </div>
+        <div className="mt-3 flex flex-wrap items-center gap-1">
+          <button className="btn-ghost" onClick={nativeShare}>{copied === "share" ? "Link copied ✓" : "Share"}</button>
+          <button className="btn-ghost" onClick={() => { window.open(`https://wa.me/?text=${encodeURIComponent(shareText + " " + shareUrl())}`, "_blank"); track("share_link", { via: "whatsapp" }); }}>WhatsApp</button>
+          <button className="btn-ghost" onClick={() => { window.open(`https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(shareUrl())}`, "_blank"); track("share_link", { via: "linkedin" }); }}>LinkedIn</button>
+          <button className="btn-ghost" onClick={() => { window.open(`https://twitter.com/intent/tweet?text=${encodeURIComponent(shareText)}&url=${encodeURIComponent(shareUrl())}`, "_blank"); track("share_link", { via: "x" }); }}>X / Twitter</button>
+          <button className="btn-ghost" onClick={() => { window.open(`mailto:?subject=${encodeURIComponent("Dataset citation repaired (CitationLX)")}&body=${encodeURIComponent(shareText + "\n" + shareUrl())}`); track("share_link", { via: "email" }); }}>Email</button>
+          <button className="btn-ghost" onClick={() => { navigator.clipboard.writeText(shareUrl()); setCopied("share"); setTimeout(() => setCopied(""), 1200); track("share_link", { via: "copy" }); }}>{copied === "share" ? "Copied ✓" : "Copy link"}</button>
         </div>
         <pre className="mt-4 overflow-x-auto rounded-lg bg-muted p-4 font-mono text-xs leading-relaxed">{out}</pre>
         {exp === "Zotero Extra" && <p className="mt-2 text-xs text-muted-foreground">Paste into Zotero's Extra field to force dataset type and version in any citation style.</p>}
@@ -606,7 +607,7 @@ function VersionGuard({ versions, onSwitchDoi }: { versions: VersionInfo; onSwit
       <div className="mt-5 rounded-lg border border-success/40 bg-success/10 p-4 text-sm">
         <b className="font-medium">Version DOI — good.</b>{" "}
         <span className="text-muted-foreground">This DOI pins the exact version you used, which is what reproducibility guidance recommends. The concept DOI covering all versions is{" "}
-          <a className="underline underline-offset-2" href={https://doi.org/${versions.conceptDoi}}>{versions.conceptDoi}</a>.</span>
+          <a className="underline underline-offset-2" href={`https://doi.org/${versions.conceptDoi}`}>{versions.conceptDoi}</a>.</span>
       </div>
     );
   }
@@ -617,7 +618,7 @@ function VersionGuard({ versions, onSwitchDoi }: { versions: VersionInfo; onSwit
       <div className="mt-2 flex flex-wrap gap-2">
         {versions.versionDois?.slice(0, 6).map((d) => (
           <button key={d} className="btn-ghost" onClick={() => onSwitchDoi(d)}>{d}</button>
-         ))}
+        ))}
       </div>
     </div>
   );
@@ -628,9 +629,9 @@ function StatusBanner({ status }: { status: StatusInfo }) {
     <div className="mt-5 rounded-lg border border-destructive/40 bg-destructive/10 p-4 text-sm">
       {status!.updates.map((u, i) => (
         <p key={i} className={i ? "mt-2" : ""}>
-          <b className="font-medium">⚠ u.label ?? u.type.charAt(0).toUpperCase() + u.type.slice(1)}</b>
+          <b className="font-medium">⚠ {u.label ?? u.type.charAt(0).toUpperCase() + u.type.slice(1)}</b>
           {u.date ? ` (${u.date})` : ""} · Crossref reports this record was {u.type === "retraction" ? "retracted" : "updated or corrected"}.
-          {u.doi && <> See the <a className="underline underline-offset-2" href={https://doi.org/${u.doi}}>update notice</a> before citing.</>}
+          {u.doi && <> See the <a className="underline underline-offset-2" href={`https://doi.org/${u.doi}`}>update notice</a> before citing.</>}
         </p>
       ))}
       <p className="mt-1 text-xs text-muted-foreground">Checked against Crossref update metadata.</p>
@@ -681,7 +682,7 @@ function DasPanel({ record, copy, copied }: { record: DatasetRecord; copy: (t: s
         </div>
       </div>
       <p className="mt-3 text-sm leading-relaxed">{text}</p>
-      <button className="btn-ghost mt-4" onClick={() => copy(text, "das"})}>{copied === "das" ? "Copied ✓" : "Copy statement"}</button>
+      <button className="btn-ghost mt-4" onClick={() => copy(text, "das")}>{copied === "das" ? "Copied ✓" : "Copy statement"}</button>
     </div>
   );
 }
