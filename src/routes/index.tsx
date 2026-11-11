@@ -369,6 +369,7 @@ function DoiInput({ onLoad, deepLink }: { onLoad: (r: DatasetRecord, s: string, 
   const [v, setV] = useState("");
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState("");
+  const [pasteFallback, setPasteFallback] = useState(false);
   useEffect(() => { if (deepLink?.doi) setV((prev) => prev || deepLink.doi); }, [deepLink?.doi]);
   const fetching = busy || !!deepLink?.busy;
   const go = async (raw?: string) => {
@@ -387,7 +388,12 @@ function DoiInput({ onLoad, deepLink }: { onLoad: (r: DatasetRecord, s: string, 
       track("paste_fix");
       go(t);
     } catch {
-      setErr("Couldn't read the clipboard. Copy the page link, paste it above, then press Fetch metadata.");
+      // Scripted clipboard reads are frequently blocked (permission denied, or the browser never
+      // grants them to web pages). Fall back to a paste box: long-press → Paste always works
+      // inside a text field, because it is a user action, not a scripted read.
+      setErr("");
+      setPasteFallback(true);
+      track("paste_fix_fallback");
     }
   };
   return (
@@ -400,6 +406,13 @@ function DoiInput({ onLoad, deepLink }: { onLoad: (r: DatasetRecord, s: string, 
           <button className="btn-ghost" disabled={fetching} onClick={pasteAndGo}>Paste & fix</button>
         )}
       </div>
+      {pasteFallback && (
+        <div className="space-y-2 rounded-lg border bg-muted/40 p-3">
+          <p className="text-xs text-muted-foreground">Your browser blocked automatic clipboard access. Tap in the box, long-press and choose <b>Paste</b> (or press Ctrl/Cmd-V), then tap the button.</p>
+          <textarea className="field h-20 font-mono text-xs" autoFocus placeholder="Paste the page link here" value={v} onChange={(e) => setV(e.target.value)} />
+          <button className="btn w-full justify-center" disabled={fetching} onClick={() => { track("paste_fix"); go(); }}>{fetching ? "Fetching…" : "Fix this citation"}</button>
+        </div>
+      )}
       {(err || deepLink?.err) && <p className="text-sm text-destructive">{err || deepLink?.err}</p>}
     </div>
   );
