@@ -4,12 +4,6 @@
   "description": "Fix dataset records your reference manager imports badly. Validate, repair, export. Free, private, runs in your browser.",
   "start_url": "/",
   "scope": "/",
-  "share_target": {
-    "action": "/",
-    "method": "GET",
-    "enctype": "application/x-www-form-urlencoded",
-    "params": { "title": "title", "text": "text", "url": "url" }
-  },
   "display": "standalone",
   "background_color": "#1d1d26",
   "theme_color": "#1d1d26",

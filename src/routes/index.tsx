@@ -32,7 +32,7 @@ const FAQS: { q: string; a: string }[] = [
   },
   {
     q: "Is there a browser button?",
-    a: "Yes. Drag the “Fix this citation” button in the Browser button section to your bookmarks bar. On any repository or journal page, one click finds the DOI and opens it in CitationLX. No extension or install needed. On mobile, where bookmarklets don't work: install CitationLX to your home screen and share pages to it from the browser's Share menu (Android), or copy the link and tap “Paste & fix” in the DOI tab.",
+    a: "Yes. Drag the “Fix this citation” button in the Browser button section to your bookmarks bar. On any repository or journal page, one click finds the DOI and opens it in CitationLX. No extension or install needed.",
   },
   {
     q: "Can I install CitationLX as an app?",
@@ -162,18 +162,14 @@ function Index() {
       }
       return;
     }
-    const sp = new URLSearchParams(window.location.search);
-    const q = sp.get("doi") || [sp.get("url"), sp.get("text"), sp.get("title")].filter(Boolean).join(" ");
+    const q = new URLSearchParams(window.location.search).get("doi");
     const clean = q ? extractDoi(q) : null;
     if (clean) {
-      track("doi_fetch", { doi: clean, via: sp.get("doi") ? "guide" : "pwa" });
+      track("doi_fetch", { doi: clean, via: "guide" });
       setDeepLink({ doi: clean, busy: true, err: "" });
       fetchByDoi(clean)
         .then(({ record, source, rawType, versions: v }) => { load(record, source, rawType, [], v); setDeepLink({ doi: clean, busy: false, err: "" }); })
         .catch((e: any) => { setDeepLink({ doi: clean, busy: false, err: (e?.message || "Couldn't fetch that DOI") + " — check your connection, then press Fetch metadata to retry." }); });
-    } else if (q) {
-      // PWA share target shared a page without an extractable DOI: prefill it so the user can retry or switch tabs.
-      setDeepLink({ doi: sp.get("url") || q, busy: false, err: "" });
     }
   }, []);
 
@@ -221,7 +217,7 @@ function Index() {
           </nav>
           <div className="panel p-5">
             <p className="eyebrow mb-3">{TABS.find((t) => t[0] === tab)![2]}</p>
-            {tab === "doi" && <DoiInput onLoad={load} />}
+            {tab === "doi" && <DoiInput onLoad={load} deepLink={deepLink} />}
             {tab === "software" && <SoftwareInput onLoad={load} />}
             {tab === "repair" && <RepairInput onLoad={load} />}
             {tab === "nodoi" && <NoDoi onLoad={load} />}
@@ -258,9 +254,6 @@ function Index() {
             DOI (from the page's citation metadata or your text selection) and opens it in CitationLX.
           </p>
           <Bookmarklet />
-          <p className="mt-4 max-w-2xl text-sm leading-relaxed text-muted-foreground">
-            <b className="font-medium text-foreground">On your phone?</b> Mobile browsers don't run bookmarklets. Install CitationLX to your home screen and use the browser's Share menu → CitationLX (Android), or copy the page link and tap “Paste & fix” in the Cite by DOI tab.
-          </p>
         </div>
       </section>
 
@@ -369,53 +362,50 @@ function DoiInput({ onLoad, deepLink }: { onLoad: (r: DatasetRecord, s: string, 
   const [v, setV] = useState("");
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState("");
-  const [pasteFallback, setPasteFallback] = useState(false);
   useEffect(() => { if (deepLink?.doi) setV((prev) => prev || deepLink.doi); }, [deepLink?.doi]);
   const fetching = busy || !!deepLink?.busy;
   const go = async (raw?: string) => {
-    const doi = extractDoi(raw ?? v);
-    if (!doi) return setErr("No DOI found in that input. Repository pages (Zenodo, Dryad, figshare) usually show one — or use the “No DOI” tab to build the citation manually.");
+    const input = (raw ?? v).trim();
+    let doi = extractDoi(input);
     setErr(""); setBusy(true);
-    try { const { record, source, rawType, versions } = await fetchByDoi(doi); track("doi_fetch", { doi }); onLoad(record, source, rawType, [], versions); }
-    catch (e: any) { track("doi_fetch_error"); setErr(`${e.message} — you can also switch to the “No DOI” tab and enter the details manually.`); }
-    finally { setBusy(false); }
-  };
-  const pasteAndGo = async () => {
     try {
-      const t = await navigator.clipboard.readText();
-      if (!t) return setErr("The clipboard is empty — copy the page link first, then tap Paste & fix.");
-      setV(t);
-      track("paste_fix");
-      go(t);
-    } catch {
-      // Scripted clipboard reads are frequently blocked (permission denied, or the browser never
-      // grants them to web pages). Fall back to a paste box: long-press → Paste always works
-      // inside a text field, because it is a user action, not a scripted read.
-      setErr("");
-      setPasteFallback(true);
-      track("paste_fix_fallback");
-    }
+      if (!doi && /^https?:\/\//i.test(input)) doi = await resolveDoiFromUrl(input);
+      if (!doi) { setErr("No DOI found in that input. Repository pages (Zenodo, Dryad, figshare) usually show one — PubMed, PMC and arXiv links are resolved automatically — or use the “No DOI” tab to build the citation manually."); return; }
+      const { record, source, rawType, versions } = await fetchByDoi(doi);
+      track("doi_fetch", { doi });
+      onLoad(record, source, rawType, [], versions);
+    } catch (e: any) {
+      track("doi_fetch_error");
+      setErr(`${e.message} — you can also switch to the “No DOI” tab and enter the details manually.`);
+    } finally { setBusy(false); }
   };
   return (
     <div className="space-y-3">
       <input className="field font-mono" placeholder="10.5281/zenodo.… or URL" value={v}
         onChange={(e) => setV(e.target.value)} onKeyDown={(e) => e.key === "Enter" && go()} />
-      <div className="flex gap-2">
-        <button className="btn flex-1 justify-center" disabled={fetching} onClick={() => go()}>{fetching ? "Fetching…" : "Fetch metadata"}</button>
-        {typeof navigator !== "undefined" && !!navigator.clipboard?.readText && (
-          <button className="btn-ghost" disabled={fetching} onClick={pasteAndGo}>Paste & fix</button>
-        )}
-      </div>
-      {pasteFallback && (
-        <div className="space-y-2 rounded-lg border bg-muted/40 p-3">
-          <p className="text-xs text-muted-foreground">Your browser blocked automatic clipboard access. Tap in the box, long-press and choose <b>Paste</b> (or press Ctrl/Cmd-V), then tap the button.</p>
-          <textarea className="field h-20 font-mono text-xs" autoFocus placeholder="Paste the page link here" value={v} onChange={(e) => setV(e.target.value)} />
-          <button className="btn w-full justify-center" disabled={fetching} onClick={() => { track("paste_fix"); go(); }}>{fetching ? "Fetching…" : "Fix this citation"}</button>
-        </div>
-      )}
+      <button className="btn w-full justify-center" disabled={fetching} onClick={() => go()}>{fetching ? "Fetching…" : "Fetch metadata"}</button>
       {(err || deepLink?.err) && <p className="text-sm text-destructive">{err || deepLink?.err}</p>}
     </div>
   );
+}
+
+// Some pasted page URLs hide their DOI in the page HTML, which the browser cannot read
+// cross-origin. For the big public archives we can resolve the DOI from official APIs that
+// allow browser (CORS) requests: PubMed / PMC via Europe PMC, arXiv via its DOI prefix.
+async function resolveDoiFromUrl(input: string): Promise<string | null> {
+  const s = input.trim();
+  const pmc = s.match(/ncbi\.nlm\.nih\.gov\/pmc\/articles\/(PMC\d+)/i);
+  const pmid = s.match(/pubmed\.ncbi\.nlm\.nih\.gov\/(\d+)/);
+  const arxiv = s.match(/arxiv\.org\/(?:abs|pdf)\/([\w.\-]+)/i);
+  if (arxiv) return "10.48550/arXiv." + arxiv[1].replace(/\.pdf$/i, "");
+  const id = pmc ? pmc[1] : pmid ? pmid[1] : null;
+  if (!id) return null;
+  try {
+    const q = /^PMC/i.test(id) ? `PMCID:${id}` : `EXT_ID:${id} AND SRC:MED`;
+    const r = await fetch(`https://www.ebi.ac.uk/europepmc/webservices/rest/search?query=${encodeURIComponent(q)}&format=json&resultType=core`);
+    const j = await r.json();
+    return j?.resultList?.result?.[0]?.doi || null;
+  } catch { return null; }
 }
 
 function SoftwareInput({ onLoad }: { onLoad: (r: DatasetRecord, s: string, ot?: string, ch?: any, v?: VersionInfo) => void }) {
