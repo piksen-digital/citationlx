@@ -1,11 +1,13 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   type DatasetRecord, type Style, EXPORTS, STYLES, diff, download, emptyRecord, extractDoi,
-  fetchByDoi, fetchStyledCitation, formatCitation, parseRecord, score, toAvailability, validate, toBiblatex, toRis, toCsl,
+  fetchByDoi, fetchStyledCitation, formatCitation, parseRecord, score, validate, toBiblatex, toRis, toCsl,
   type VersionInfo, decodeShare, encodeShare,
+  checkStatus, DAS_PRESETS, fetchOrcidAuthor, fetchSoftware, type StatusInfo,
 } from "@/lib/citation";
 import { track } from "@/lib/analytics";
+import { ThemeToggle } from "@/components/ThemeToggle";
 
 const FAQS: { q: string; a: string }[] = [
   {
@@ -14,11 +16,31 @@ const FAQS: { q: string; a: string }[] = [
   },
   {
     q: "Which citation styles does CitationLX support?",
-    a: "Seven styles: APA 7, Chicago, MLA 9, Harvard, IEEE, Vancouver and Turabian. You can switch between them instantly and copy or download the result.",
+    a: "Seven styles: APA 7, DataCite, Chicago, MLA 9, Harvard, IEEE and Vancouver. You can switch between them instantly and copy or download the result.",
   },
   {
     q: "What if my dataset has no DOI?",
     a: "Use the “No DOI” tab. You can build a citation manually with authors, title, year, version, publisher and any identifier you have (URL, Handle, ARK, accession number), including an accessed date for informally shared data.",
+  },
+  {
+    q: "Can CitationLX warn me if the record was retracted or corrected?",
+    a: "Yes. When you fetch a DOI, CitationLX checks Crossref's update metadata in the background. If the record has been retracted or corrected, you'll see a warning with a link to the update notice before you cite it.",
+  },
+  {
+    q: "Does it work for software and code?",
+    a: "Yes. The Software tab reads a GitHub repository's CITATION.cff (the FORCE11 software citation standard), falls back to the GitHub API for basic metadata, and handles software DOIs such as Zenodo releases. Exports come out as @software BibLaTeX, RIS type COMP and CSL software.",
+  },
+  {
+    q: "Is there a browser button?",
+    a: "Yes. Drag the “Fix this citation” button in the Browser button section below to your bookmarks bar. On any repository or journal page, one click finds the DOI and opens it in CitationLX. No extension or install needed.",
+  },
+  {
+    q: "Can I install CitationLX as an app?",
+    a: "Yes. CitationLX is a Progressive Web App: install it from your browser menu to run it as a standalone window, and it keeps working when your connection drops. A dark mode toggle sits in the header for late-night writing sessions.",
+  },
+  {
+    q: "How do I get verified author names?",
+    a: "Paste an ORCID iD in the workbench (or the No-DOI tab) and CitationLX pulls the verified name from the ORCID public API, fixing organisational authors and scrambled names at the source.",
   },
   {
     q: "What export formats are available?",
@@ -26,7 +48,7 @@ const FAQS: { q: string; a: string }[] = [
   },
   {
     q: "Does CitationLX store my data?",
-    a: "No. Everything runs in your browser. Metadata is fetched from the public DataCite and Crossref APIs, and nothing you paste is ever uploaded or saved.",
+    a: "No. Everything runs in your browser. Metadata is fetched from the public DataCite, Crossref and ORCID APIs, and nothing you paste is ever uploaded or saved.",
   },
   {
     q: "Is CitationLX free?",
@@ -78,9 +100,10 @@ export const Route = createFileRoute("/")({
   component: Index,
 });
 
-type Tab = "doi" | "repair" | "nodoi" | "batch";
+type Tab = "doi" | "software" | "repair" | "nodoi" | "batch";
 const TABS: [Tab, string, string][] = [
   ["doi", "Cite by DOI", "Paste a DOI or repository link"],
+  ["software", "Software / code", "GitHub repo, CITATION.cff or software DOI"],
   ["repair", "Repair an import", "Paste a broken BibTeX / RIS / CSL record"],
   ["nodoi", "No DOI", "Build a citation for informally shared data"],
   ["batch", "Batch & dedupe", "Clean a whole reference list at once"],
@@ -137,8 +160,12 @@ function Index() {
           <a href="#faq" className="text-muted-foreground transition hover:text-foreground">FAQ</a>
           <a href="/guides" className="text-muted-foreground transition hover:text-foreground">Guides</a>
           <a href="mailto:cantrell22@hotmail.com?subject=Feature%20suggestion%20for%20CitationLX" className="btn-ghost">Suggest a feature</a>
+          <ThemeToggle />
         </nav>
-        <span className="font-mono text-xs text-muted-foreground md:hidden">DataCite · Crossref</span>
+        <span className="flex items-center gap-2 md:hidden">
+          <ThemeToggle />
+          <span className="font-mono text-xs text-muted-foreground">DataCite · Crossref</span>
+        </span>
       </header>
 
       <section className="mx-auto max-w-6xl px-6 pb-10 pt-8">
@@ -156,7 +183,7 @@ function Index() {
           <nav className="panel grid grid-cols-2 gap-1 p-1">
             {TABS.map(([id, label]) => (
               <button key={id} onClick={() => { setTab(id); track("tab_change", { tab: id }); }}
-                className={`rounded-md px-3 py-2 text-left text-sm transition ${tab === id ? "bg-primary text-primary-foreground" : "hover:bg-muted"}`}>
+                className={`rounded-md px-3 py-2 text-left text-sm transition ${tab === id ? "bg-primary text-primary-foreground" : "hover:bg-muted"} ${id === "software" ? "col-span-2" : ""}`}>
                 {label}
               </button>
             ))}
@@ -164,6 +191,7 @@ function Index() {
           <div className="panel p-5">
             <p className="eyebrow mb-3">{TABS.find((t) => t[0] === tab)![2]}</p>
             {tab === "doi" && <DoiInput onLoad={load} />}
+            {tab === "software" && <SoftwareInput onLoad={load} />}
             {tab === "repair" && <RepairInput onLoad={load} />}
             {tab === "nodoi" && <NoDoi onLoad={load} />}
             {tab === "batch" && <Batch />}
@@ -189,15 +217,27 @@ function Index() {
         <h2 className="mt-2 text-3xl">Three steps to a correct dataset citation</h2>
         <div className="mt-6 grid gap-4 md:grid-cols-3">
           {[
-            ["1", "Paste", "Drop in a DOI or repository link, a broken BibTeX / RIS / CSL export from your reference manager, or build a record manually for data shared without a DOI."],
-            ["2", "Diagnose & repair", "CitationLX checks the record against the DataCite or Crossref registry, fixes the resource type, version, authors and year, and shows you exactly which fields changed — with a citation health score."],
-            ["3", "Export", "Copy a journal-ready citation in seven styles, download clean BibLaTeX, RIS or CSL JSON, and generate a Data Availability Statement or Zotero Extra snippet."],
+            ["1", "Paste", "Drop in a DOI or repository link, a broken BibTeX / RIS / CSL export from your reference manager, or build a record manually for data shared without a DOI. The Software tab reads GitHub repos and CITATION.cff files."],
+            ["2", "Diagnose & repair", "CitationLX checks the record against the DataCite or Crossref registry, fixes the resource type, version, authors and year, and shows you exactly which fields changed, with a citation health score. It also checks Crossref for retractions and updates before you cite."],
+            ["3", "Export", "Copy a journal-ready citation in seven styles, download clean BibLaTeX, RIS or CSL JSON, and generate a funder-ready Data Availability Statement (NIH DMS, NSF, PLOS, Nature, Elsevier) or Zotero Extra snippet."],
           ].map(([n, title, body]) => (
             <div key={n} className="panel p-6">
               <div className="font-display text-4xl font-semibold text-accent">{n}</div>
               <h3 className="mt-2 text-xl">{title}</h3>
               <p className="mt-2 text-sm leading-relaxed text-muted-foreground">{body}</p>
             </div>
+          ))}
+        </div>
+        <div className="mt-4 grid gap-3 text-sm text-muted-foreground md:grid-cols-3">
+          {[
+            "Version-DOI guard for Zenodo, Dryad & figshare",
+            "Retraction & update warnings from Crossref",
+            "Software mode: GitHub repos & CITATION.cff",
+            "ORCID author pickup for verified names",
+            "“Fix this citation” bookmarklet",
+            "Installable app with dark mode",
+          ].map((f) => (
+            <div key={f} className="panel p-4">✦ {f}</div>
           ))}
         </div>
       </section>
@@ -214,6 +254,18 @@ function Index() {
               <p className="mt-3 text-sm leading-relaxed text-muted-foreground">{f.a}</p>
             </details>
           ))}
+        </div>
+      </section>
+
+      <section id="bookmarklet" className="mx-auto max-w-6xl px-6 pb-16">
+        <p className="eyebrow">Browser button</p>
+        <h2 className="mt-2 text-3xl">“Fix this citation” bookmarklet</h2>
+        <div className="panel mt-6 p-8">
+          <p className="max-w-2xl text-sm leading-relaxed text-muted-foreground">
+            A zero-install alternative to a full browser extension. On any repository or journal page, one click finds the
+            DOI (from the page's citation metadata or your text selection) and opens it in CitationLX.
+          </p>
+          <Bookmarklet />
         </div>
       </section>
 
@@ -235,8 +287,10 @@ function Index() {
         <p>Metadata from DataCite & Crossref public APIs. Runs entirely in your browser — nothing is stored.</p>
         <p className="mt-2">
           <a href="#how-it-works" className="underline-offset-2 hover:underline">How it works</a>
-          {" · "}
+          { 0۠"}
           <a href="#faq" className="underline-offset-2 hover:underline">FAQ</a>
+          {" · "}
+          <a href="#bookmarklet" className="underline-offset-2 hover:underline">Bookmarklet</a>
           {" · "}
           <a href="/guides" className="underline-offset-2 hover:underline">Guides</a>
           {" · "}
@@ -254,12 +308,15 @@ function Empty() {
       <div className="mt-3 space-y-1 font-mono text-sm">
         <p>10.5281/zenodo.3678171</p>
         <p>https://doi.org/10.5061/dryad.j6q573nb3</p>
+        <p>https://github.com/pola-rs/polars</p>
       </div>
       <ul className="mt-8 grid gap-3 text-sm text-muted-foreground md:grid-cols-2">
         <li>✦ Detects datasets mis-typed as journal articles</li>
-        <li>✦ Diffs your import against authoritative metadata</li>
+        <li>✆ Diffs your import against authoritative metadata</li>
         <li>✦ Generates a journal-ready Data Availability Statement</li>
         <li>✦ Zotero "Extra" field snippet for stubborn libraries</li>
+        <li>✦ Software mode: GitHub repos & CITATION.cff</li>
+        <li>✆ Warns if the record was retracted or updated</li>
       </ul>
     </div>
   );
@@ -282,7 +339,32 @@ function DoiInput({ onLoad }: { onLoad: (r: DatasetRecord, s: string, ot?: strin
       <input className="field font-mono" placeholder="10.5281/zenodo.… or URL" value={v}
         onChange={(e) => setV(e.target.value)} onKeyDown={(e) => e.key === "Enter" && go()} />
       <button className="btn w-full justify-center" disabled={busy} onClick={go}>{busy ? "Fetching…" : "Fetch metadata"}</button>
+      {err && <p className="text-sm text-destructive">{err}</p>}}
+    </div>
+  );
+}
+
+function SoftwareInput({ onLoad }: { onLoad: (r: DatasetRecord, s: string, ot?: string, ch?: any, v?: VersionInfo) => void }) {
+  const [v, setV] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState("");
+  const go = async () => {
+    setErr(""); setBusy(true);
+    try {
+      const { record, source } = await fetchSoftware(v);
+      track("software_fetch", { via: /github\.com/i.test(v) ? "github" : /^cff-version:/m.test(v) ? "cff" : "doi" });
+      onLoad(record, source);
+    } catch (e: any) { setErr(e.message); }
+    finally { setBusy(false); }
+  };
+  return (
+    <div className="space-y-3">
+      <input className="field font-mono" placeholder="github.com/org/repo or a software DOI" value={v}
+        onChange={(e) => setV(e.target.value)} onKeyDown={(e) => e.key === "Enter" && go()} />
+      <textarea className="field h-28 font-mono text-xs" placeholder={"…or paste a CITATION.cff:\ncff-version: 1.2.0\ntitle: My Software\nauthors:\n  - family-names: Doe"} value={v} onChange={(e) => setV(e.target.value)} />
+      <button className="btn w-full justify-center" disabled={busy} onClick={go}>{busy ? "Fetching…" : "Fetch software metadata"}</button>
       {err && <p className="text-sm text-destructive">{err}</p>}
+      <p className="text-xs text-muted-foreground">Reads the repo's CITATION.cff (FORCE11 software citation principles), falls back to the GitHub API, and handles software DOIs such as Zenodo releases.</p>
     </div>
   );
 }
@@ -372,6 +454,15 @@ function Workbench({ record, setRecord, origType, changes, source, versions, onS
   const [exp, setExp] = useState<keyof typeof EXPORTS>("BibLaTeX");
   const [copied, setCopied] = useState("");
   const copy = (t: string, id: string) => { navigator.clipboard.writeText(t.replace(/\*/g, "")); setCopied(id); setTimeout(() => setCopied(""), 1200); track("copy", { what: id }); };
+  const [status, setStatus] = useState<StatusInfo>(null);
+  useEffect(() => {
+    let live = true;
+    if (!record.doi) { setStatus(null); return; }
+    checkStatus(record.doi)
+      .then((st) => { if (live) { setStatus(st); if (st) track("status_warning", { doi: record.doi }); } })
+      .catch(() => {});
+    return () => { live = false; };
+  }, [record.doi]);
   const [apiCite, setApiCite] = useState<string | null>(null);
   const [citeLoading, setCiteLoading] = useState(false);
   useEffect(() => {
@@ -398,10 +489,13 @@ function Workbench({ record, setRecord, origType, changes, source, versions, onS
           <div className="text-right">
             <div className={`font-display text-4xl font-semibold ${s >= 85 ? "text-success" : s >= 60 ? "text-warning" : "text-destructive"}`}>{s}</div>
             <p className="eyebrow">citation health</p>
+            <button className="btn-ghost mt-2" onClick={() => shareCard(record, s)}>Score card</button>
           </div>
         </div>
 
         {versions && <VersionGuard versions={versions} onSwitchDoi={onSwitchDoi} />}
+
+        {status && <StatusBanner status={status} />}
 
         {changes.length > 0 && (
           <div className="mt-5 rounded-lg bg-muted p-4">
@@ -443,6 +537,7 @@ function Workbench({ record, setRecord, origType, changes, source, versions, onS
           <input className="field" value={record.publisher} onChange={set("publisher")} placeholder="Repository" />
           <input className="field font-mono" value={record.doi} onChange={set("doi")} placeholder="DOI" />
         </div>
+        <OrcidPickup record={record} setRecord={setRecord} />
       </div>
 
       <div className="panel p-6">
@@ -476,11 +571,7 @@ function Workbench({ record, setRecord, origType, changes, source, versions, onS
         {exp === "Zotero Extra" && <p className="mt-2 text-xs text-muted-foreground">Paste into Zotero's Extra field to force dataset type and version in any citation style.</p>}
       </div>
 
-      <div className="panel p-6">
-        <p className="eyebrow">Data availability statement</p>
-        <p className="mt-3 text-sm leading-relaxed">{toAvailability(record)}</p>
-        <button className="btn-ghost mt-4" onClick={() => copy(toAvailability(record), "das")}>{copied === "das" ? "Copied ✓" : "Copy statement"}</button>
-      </div>
+      <DasPanel record={record} copy={copy} copied={copied} />
     </div>
   );
 }
@@ -498,12 +589,125 @@ function VersionGuard({ versions, onSwitchDoi }: { versions: VersionInfo; onSwit
   return (
     <div className="mt-5 rounded-lg border border-warning/50 bg-warning/10 p-4 text-sm">
       <b className="font-medium">Concept DOI — this link always resolves to the latest version.</b>{" "}
-      <span className="text-muted-foreground">If your results depend on a specific snapshot of the data, cite a version DOI instead:</span>
+      <span className="text-muted-foreground">If your resuls depend on a specific snapshot of the data, cite a version DOI instead:</span>
       <div className="mt-2 flex flex-wrap gap-2">
         {versions.versionDois?.slice(0, 6).map((d) => (
           <button key={d} className="btn-ghost" onClick={() => onSwitchDoi(d)}>{d}</button>
         ))}
       </div>
+    </div>
+  );
+}
+
+function StatusBanner({ status }: { status: StatusInfo }) {
+  return (
+    <div className="mt-5 rounded-lg border border-destructive/40 bg-destructive/10 p-4 text-sm">
+      {status!.updates.map((u, i) => (
+        <p key={i} className={i ? "mt-2" : ""}>
+          <b className="font-medium">⚠ u.label ?? u.type.charAt(0).toUpperCase() + u.type.slice(1)}</b>
+          {u.date ? ` (${u.date})` : ""} · Crossref reports this record was {u.type === "retraction" ? "retracted" : "updated or corrected"}.
+          {u.doi && <> See the <a className="underline underline-offset-2" href={`/doi.org/${u.doi}`}>update notice</a> before citing.</>}
+        </p>
+      ))}
+      <p className="mt-1 text-xs text-muted-foreground">Checked against Crossref update metadata.</p>
+    </div>
+  );
+}
+
+function OrcidPickup({ record, setRecord }: { record: DatasetRecord; setRecord: (r: DatasetRecord) => void }) {
+  const [id, setId] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [msg, setMsg] = useState("");
+  const go = async () => {
+    setBusy(true); setMsg("");
+    try {
+      const c = await fetchOrcidAuthor(id);
+      setRecord({ ...record, creators: [...record.creators.filter((x) => x.orcid !== c.orcid), c] });
+      setMsg(`Added ${c.family ?? c.literal}${c.given ? ", " + c.given : ""} from ORCID.`);
+      track("orcid_fetch");
+    } catch (e: any) { setMsg(e.message); }
+    finally { setBusy(false); }
+  };
+  return (
+    <div className="mt-3 border-t pt-3">
+      <p className="eyebrow mb-2">ORCID pickup</p>
+      <div className="flex gap-2">
+        <input className="field font-mono" placeholder="0000-0002-1825-0097" value={id} onChange={(e) => setId(e.target.value)} onKeyDown={(e) => e.key === "Enter" && go()} />
+        <button className="btn shrink-0" disabled={busy} onClick={go}>{busy ? "…" : "Add author"}</button>
+      </div>
+      {msg && <p className="mt-2 text-xs text-muted-foreground">{msg}</p>}
+    </div>
+  );
+}
+
+function DasPanel({ record, copy, copied }: { record: DatasetRecord; copy: (t: string, id: string) => void; copied: string }) {
+  const [preset, setPreset] = useState(DAS_PRESETS[0].id);
+  const p = DAS_PRESETS.find((x) => x.id === preset)!;
+  const text = p.build(record);
+  return (
+    <div className="panel p-6">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <p className="eyebrow">Data availability statement</p>
+        <div className="flex flex-wrap gap-1">
+          {DAS_PRESETS.map((x) => (
+            <button key={x.id} title={x.hint} onClick={() => { setPreset(x.id); track("das_preset", { preset: x.id }); }}
+              className={`rounded-full px-3 py-1 text-xs ${preset === x.id ? "bg-primary text-primary-foreground" : "bg-muted hover:bg-secondary"}`}>{x.label}</button>
+          ))}
+        </div>
+      </div>
+      <p className="mt-3 text-sm leading-relaxed">{text}</p>
+      <button className="btn-ghost mt-4" onClick={() => copy(text, "das")}>{copied === "das" ? "Copied ✓" : "Copy statement"}</button>
+    </div>
+  );
+}
+
+function shareCard(record: DatasetRecord, s: number) {
+  const c = document.createElement("canvas");
+  c.width = 1200; c.height = 630;
+  const x = c.getContext("2d");
+  if (!x) return;
+  x.fillStyle = "#1d1d26"; x.fillRect(0, 0, 1200, 630);
+  x.fillStyle = "#d07a3a"; x.font = "italic 700 130px 'Playfair Display', Georgia, serif";
+  x.fillText("\u201C", 48, 150);
+  x.fillStyle = "#f5f1e8"; x.font = "500 44px 'Space Grotesk', Inter, sans-serif";
+  const words = (record.title || "Untitled dataset").split(/\s+/);
+  const lines: string[] = [];
+  let line = "";
+  for (const w of words) {
+    const t = line ? line + " " + w : w;
+    if (x.measureText(t).width > 900 && line) { lines.push(line); line = w; if (lines.length === 2) break; }
+    else line = t;
+  }
+  if (line && lines.length < 2) lines.push(line);
+  lines.slice(0, 2).forEach((l, i) => x.fillText(l, 60, 250 + i * 56));
+  x.fillStyle = "#d07a3a"; x.font = "700 170px 'Space Grotesk', Inter, sans-serif";
+  const scoreTxt = String(s);
+  x.fillText(scoreTxt, 60, 540);
+  const sw = x.measureText(scoreTxt).width;
+  x.fillStyle = "#f5f1e8"; x.font = "500 34px 'Space Grotesk', Inter, sans-serif";
+  x.fillText("/ 100 citation health", 60 + sw + 32, 540);
+  x.fillStyle = "#8f8a99"; x.font = "26px Inter, sans-serif";
+  x.fillText("citationlx.online · dataset citation repair", 60, 596);
+  const a = document.createElement("a");
+  a.href = c.toDataURL("image/png");
+  a.download = "citationlx-score.png";
+  a.click();
+  track("share_card");
+}
+
+const BOOKMARKLET = "(function(){var m=document.querySelector('meta[name=\"citation_doi\"]');var d=m?m.content:((window.getSelection()+'').match(/10\\.\\d{4,9}\\/\\S+/)||[])[0];if(!d)d=prompt('No DOI found on this page. Paste a DOI or dataset URL:');if(d){d=String(d).replace(/[.)]+$/,'');window.open('https://citationlx.online/?doi='+encodeURIComponent(d),'_blank')}})();";
+
+function Bookmarklet() {
+  const [copied, setCopied] = useState(false);
+  const ref = useRef<HTMLAnchorElement>(null);
+  useEffect(() => {
+    if (ref.current) ref.current.href = BOOKMARKLET;
+  }, []);
+  return (
+    <div className="mt-4 flex flex-wrap items-center gap-3">
+      <a ref={ref} draggable className="btn" href="#" onClick={(e) => e.preventDefault()}>Fix this citation · drag to bookmarks</a>
+      <button className="btn-ghost" onClick={() => { navigator.clipboard.writeText(BOOKMARKLET); setCopied(true); setTimeout(() => setCopied(false), 1500); track("bookmarklet_copy"); }}>{copied ? "Code copied ✓" : "Copy code"}</button>
+      <span className="text-xs text-muted-foreground">Drag the button to your bookmarks bar, or create a bookmark whose URL is the copied code.</span>
     </div>
   );
 }
