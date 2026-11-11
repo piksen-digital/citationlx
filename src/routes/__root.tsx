@@ -15,6 +15,7 @@ import { reportLovableError } from "../lib/lovable-error-reporting";
 
 const THEME_INIT = "try{var t=localStorage.getItem('theme');if(t?t==='dark':window.matchMedia('(prefers-color-scheme: dark)').matches)document.documentElement.classList.add('dark')}catch(e){}";
 const SW_REGISTER = "if('serviceWorker' in navigator){window.addEventListener('load',function(){navigator.serviceWorker.register('/sw.js').catch(function(){})})}";
+const BOOT_TOAST = "try{if(/[?&]doi=/.test(location.search)||location.hash.indexOf('#r=')===0){var m=location.search.match(/[?&]doi=([^&]+)/),d=m?decodeURIComponent(m[1]).slice(0,60):'';var b=document.createElement('div');b.id='clx-boot';b.style.cssText='position:fixed;left:50%;bottom:24px;transform:translateX(-50%);z-index:9999;max-width:90vw;background:#1d1d26;color:#f5f1e8;font:500 14px/1.5 Inter,system-ui,sans-serif;padding:12px 20px;border-radius:999px;border:1px solid #d07a3a;box-shadow:0 8px 24px rgba(0,0,0,.25)';b.textContent=d?'CitationLX is fetching '+d+' from the registry\u2026':'CitationLX is loading your dataset\u2026';document.body.appendChild(b);setTimeout(function(){b.style.transition='opacity .6s';b.style.opacity='0'},9000);setTimeout(function(){b.remove()},9800)}}catch(e){}";
 
 function NotFoundComponent() {
   return (
@@ -116,6 +117,7 @@ function RootShell({ children }: { children: ReactNode }) {
         {children}
         <Scripts />
         <script dangerouslySetInnerHTML={{ __html: SW_REGISTER }} />
+        <script dangerouslySetInnerHTML={{ __html: BOOT_TOAST }} />
       </body>
     </html>
   );

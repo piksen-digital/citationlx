@@ -136,6 +136,7 @@ function Index() {
   const [changes, setChanges] = useState<ReturnType<typeof diff>>([]);
   const [source, setSource] = useState("");
   const [versions, setVersions] = useState<VersionInfo | undefined>();
+  const [deepLink, setDeepLink] = useState<{ doi: string; busy: boolean; err: string } | null>(null);
 
   const load = (r: DatasetRecord, src: string, ot?: string, ch: ReturnType<typeof diff> = [], v?: VersionInfo) => {
     setRecord(r); setSource(src); setOrigType(ot); setChanges(ch); setVersions(v);
@@ -151,6 +152,7 @@ function Index() {
 
   // Shared repair links (#r=...) and guide deep links (?doi=...)
   useEffect(() => {
+    document.getElementById("clx-boot")?.remove();
     const hash = window.location.hash;
     if (hash.startsWith("#r=")) {
       const shared = decodeShare(hash.slice(3));
@@ -164,7 +166,10 @@ function Index() {
     const clean = q ? extractDoi(q) : null;
     if (clean) {
       track("doi_fetch", { doi: clean, via: "guide" });
-      fetchByDoi(clean).then(({ record, source, rawType, versions: v }) => load(record, source, rawType, [], v)).catch(() => {});
+      setDeepLink({ doi: clean, busy: true, err: "" });
+      fetchByDoi(clean)
+        .then(({ record, source, rawType, versions: v }) => { load(record, source, rawType, [], v); setDeepLink({ doi: clean, busy: false, err: "" }); })
+        .catch((e: any) => { setDeepLink({ doi: clean, busy: false, err: (e?.message || "Couldn't fetch that DOI") + " — check your connection, then press Fetch metadata to retry." }); });
     }
   }, []);
 
@@ -228,6 +233,12 @@ function Index() {
             </div>
           ) : record ? (
             <Workbench record={record} setRecord={setRecord} origType={origType} changes={changes} source={source} versions={versions} onSwitchDoi={switchDoi} />
+          ) : deepLink?.busy ? (
+            <div className="panel flex h-full min-h-[420px] flex-col justify-center p-10">
+              <p className="eyebrow">Fetching from the registry</p>
+              <p className="mt-3 break-all font-mono text-sm">{deepLink.doi}</p>
+              <p className="mt-4 text-sm text-muted-foreground">This usually takes a few seconds; on a slow connection a little longer. The repaired record will appear here.</p>
+            </div>
           ) : (
             <Empty />
           )}
@@ -347,10 +358,12 @@ function Empty() {
   );
 }
 
-function DoiInput({ onLoad }: { onLoad: (r: DatasetRecord, s: string, ot?: string, ch?: any, v?: VersionInfo) => void }) {
+function DoiInput({ onLoad, deepLink }: { onLoad: (r: DatasetRecord, s: string, ot?: string, ch?: any, v?: VersionInfo) => void; deepLink?: { doi: string; busy: boolean; err: string } | null }) {
   const [v, setV] = useState("");
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState("");
+  useEffect(() => { if (deepLink?.doi) setV((prev) => prev || deepLink.doi); }, [deepLink?.doi]);
+  const fetching = busy || !!deepLink?.busy;
   const go = async () => {
     const doi = extractDoi(v);
     if (!doi) return setErr("No DOI found in that input. Repository pages (Zenodo, Dryad, figshare) usually show one — or use the “No DOI” tab to build the citation manually.");
@@ -363,8 +376,8 @@ function DoiInput({ onLoad }: { onLoad: (r: DatasetRecord, s: string, ot?: strin
     <div className="space-y-3">
       <input className="field font-mono" placeholder="10.5281/zenodo.… or URL" value={v}
         onChange={(e) => setV(e.target.value)} onKeyDown={(e) => e.key === "Enter" && go()} />
-      <button className="btn w-full justify-center" disabled={busy} onClick={go}>{busy ? "Fetching…" : "Fetch metadata"}</button>
-      {err && <p className="text-sm text-destructive">{err}</p>}
+      <button className="btn w-full justify-center" disabled={fetching} onClick={go}>{fetching ? "Fetching…" : "Fetch metadata"}</button>
+      {(err || deepLink?.err) && <p className="text-sm text-destructive">{err || deepLink?.err}</p>}
     </div>
   );
 }
