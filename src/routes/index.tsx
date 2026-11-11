@@ -307,25 +307,20 @@ function Index() {
         </div>
       </section>
 
-      <footer className="border-t py-8 text-center text-xs text-muted-foreground">
-        <p>Metadata from DataCite & Crossref public APIs. Runs entirely in your browser — nothing is stored.</p>
-        <p className="mt-2">
-          <a href="#bookmarklet" className="underline-offset-2 hover:underline">Browser button</a>
-          {" · "}
-          <a href="#features" className="underline-offset-2 hover:underline">Features</a>
-          {" · "}
-          <a href="#how-it-works" className="underline-offset-2 hover:underline">How it works</a>
-          {" · "}
-          <a href="#faq" className="underline-offset-2 hover:underline">FAQ</a>
-          {" · "}
-          <a href="/guides" className="underline-offset-2 hover:underline">Guides</a>
-          {" · "}
-          <a href="mailto:cantrell22@hotmail.com?subject=Feature%20suggestion%20for%20CitationLX" className="underline-offset-2 hover:underline">Suggest a feature</a>
-        </p>
-        <p className="mt-3">
-          CitationLX is free. If it saved your bibliography,{" "}
-          <a href="https://www.paypal.com/donate/?business=georgec.ignite%40gmail.com&currency_code=USD&item_name=Buy%20the%20CitationLX%20maintainer%20a%20coffee&source=url" target="_blank" rel="noopener noreferrer" className="underline underline-offset-2 hover:text-foreground">buy the maintainer a coffee</a>.
-        </p>
+      <footer className="border-t py-8 text-xs text-muted-foreground">
+        <nav aria-label="Footer" className="mx-auto flex max-w-3xl flex-wrap items-center justify-center gap-x-6 gap-y-2">
+          <a href="#features" className="transition hover:text-foreground">Features</a>
+          <a href="#bookmarklet" className="transition hover:text-foreground">Browser button</a>
+          <a href="#how-it-works" className="transition hover:text-foreground">How it works</a>
+          <a href="#faq" className="transition hover:text-foreground">FAQ</a>
+          <a href="/guides" className="transition hover:text-foreground">Guides</a>
+          <a href="mailto:cantrell22@hotmail.com?subject=Feature%20suggestion%20for%20CitationLX" className="transition hover:text-foreground">Suggest a feature</a>
+          <a href="https://www.paypal.com/donate/?business=georgec.ignite%40gmail.com&currency_code=USD&item_name=Buy%20the%20CitationLX%20maintainer%20a%20coffee&source=url" target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1.5 font-medium text-accent transition hover:opacity-80">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" className="h-3.5 w-3.5" aria-hidden="true"><path d="M10 2v2" /><path d="M14 2v2" /><path d="M16 8a1 1 0 0 1 1 1v8a4 4 0 0 1-4 4H7a4 4 0 0 1-4-4V9a1 1 0 0 1 1-1h14a4 4 0 1 1 0 8h-1" /><path d="M6 2v2" /></svg>
+            Buy the maintainer a coffee
+          </a>
+        </nav>
+        <p className="mt-4 text-center">CitationLX is free. Metadata from DataCite & Crossref public APIs. Runs entirely in your browser — nothing is stored.</p>
       </footer>
     </div>
   );
