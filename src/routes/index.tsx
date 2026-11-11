@@ -3,6 +3,7 @@ import { useEffect, useMemo, useState } from "react";
 import {
   type DatasetRecord, type Style, EXPORTS, STYLES, diff, download, emptyRecord, extractDoi,
   fetchByDoi, fetchStyledCitation, formatCitation, parseRecord, score, toAvailability, validate, toBiblatex, toRis, toCsl,
+  type VersionInfo, decodeShare, encodeShare,
 } from "@/lib/citation";
 import { track } from "@/lib/analytics";
 
@@ -91,10 +92,38 @@ function Index() {
   const [origType, setOrigType] = useState<string | undefined>();
   const [changes, setChanges] = useState<ReturnType<typeof diff>>([]);
   const [source, setSource] = useState("");
+  const [versions, setVersions] = useState<VersionInfo | undefined>();
 
-  const load = (r: DatasetRecord, src: string, ot?: string, ch: ReturnType<typeof diff> = []) => {
-    setRecord(r); setSource(src); setOrigType(ot); setChanges(ch);
+  const load = (r: DatasetRecord, src: string, ot?: string, ch: ReturnType<typeof diff> = [], v?: VersionInfo) => {
+    setRecord(r); setSource(src); setOrigType(ot); setChanges(ch); setVersions(v);
   };
+
+  const switchDoi = async (doi: string) => {
+    try {
+      const { record, source, rawType, versions: v } = await fetchByDoi(doi);
+      track("version_switch", { doi });
+      load(record, source, rawType, [], v);
+    } catch {}
+  };
+
+  // Shared repair links (#r=...) and guide deep links (?doi=...)
+  useEffect(() => {
+    const hash = window.location.hash;
+    if (hash.startsWith("#r=")) {
+      const shared = decodeShare(hash.slice(3));
+      if (shared) {
+        track("share_open");
+        load(shared.record, shared.source, shared.origType, shared.changes as any);
+      }
+      return;
+    }
+    const q = new URLSearchParams(window.location.search).get("doi");
+    const clean = q ? extractDoi(q) : null;
+    if (clean) {
+      track("doi_fetch", { doi: clean, via: "guide" });
+      fetchByDoi(clean).then(({ record, source, rawType, versions: v }) => load(record, source, rawType, [], v)).catch(() => {});
+    }
+  }, []);
 
   return (
     <div className="min-h-screen">
@@ -106,6 +135,7 @@ function Index() {
         <nav className="hidden items-center gap-5 text-sm md:flex">
           <a href="#how-it-works" className="text-muted-foreground transition hover:text-foreground">How it works</a>
           <a href="#faq" className="text-muted-foreground transition hover:text-foreground">FAQ</a>
+          <a href="/guides" className="text-muted-foreground transition hover:text-foreground">Guides</a>
           <a href="mailto:cantrell22@hotmail.com?subject=Feature%20suggestion%20for%20CitationLX" className="btn-ghost">Suggest a feature</a>
         </nav>
         <span className="font-mono text-xs text-muted-foreground md:hidden">DataCite · Crossref</span>
@@ -147,7 +177,7 @@ function Index() {
               <p className="mt-2">Paste DOIs, URLs, or a whole .bib file on the left. We normalise DOIs, drop duplicates (the same dataset cited as doi:, dx.doi.org and a Zenodo link), re-fetch authoritative metadata and give you one clean file.</p>
             </div>
           ) : record ? (
-            <Workbench record={record} setRecord={setRecord} origType={origType} changes={changes} source={source} />
+            <Workbench record={record} setRecord={setRecord} origType={origType} changes={changes} source={source} versions={versions} onSwitchDoi={switchDoi} />
           ) : (
             <Empty />
           )}
@@ -208,6 +238,8 @@ function Index() {
           {" · "}
           <a href="#faq" className="underline-offset-2 hover:underline">FAQ</a>
           {" · "}
+          <a href="/guides" className="underline-offset-2 hover:underline">Guides</a>
+          {" · "}
           <a href="mailto:cantrell22@hotmail.com?subject=Feature%20suggestion%20for%20CitationLX" className="underline-offset-2 hover:underline">Suggest a feature</a>
         </p>
       </footer>
@@ -233,7 +265,7 @@ function Empty() {
   );
 }
 
-function DoiInput({ onLoad }: { onLoad: (r: DatasetRecord, s: string, ot?: string) => void }) {
+function DoiInput({ onLoad }: { onLoad: (r: DatasetRecord, s: string, ot?: string, ch?: any, v?: VersionInfo) => void }) {
   const [v, setV] = useState("");
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState("");
@@ -241,7 +273,7 @@ function DoiInput({ onLoad }: { onLoad: (r: DatasetRecord, s: string, ot?: strin
     const doi = extractDoi(v);
     if (!doi) return setErr("No DOI found in that input. Repository pages (Zenodo, Dryad, figshare) usually show one — or use the “No DOI” tab to build the citation manually.");
     setErr(""); setBusy(true);
-    try { const { record, source, rawType } = await fetchByDoi(doi); track("doi_fetch", { doi }); onLoad(record, source, rawType); }
+    try { const { record, source, rawType, versions } = await fetchByDoi(doi); track("doi_fetch", { doi }); onLoad(record, source, rawType, [], versions); }
     catch (e: any) { track("doi_fetch_error"); setErr(`${e.message} — you can also switch to the “No DOI” tab and enter the details manually.`); }
     finally { setBusy(false); }
   };
@@ -264,7 +296,7 @@ PY  - 2021
 UR  - http://dx.doi.org/10.5281/zenodo.3678171
 ER  - `;
 
-function RepairInput({ onLoad }: { onLoad: (r: DatasetRecord, s: string, ot?: string, ch?: any) => void }) {
+function RepairInput({ onLoad }: { onLoad: (r: DatasetRecord, s: string, ot?: string, ch?: any, v?: VersionInfo) => void }) {
   const [v, setV] = useState("");
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState("");
@@ -274,15 +306,17 @@ function RepairInput({ onLoad }: { onLoad: (r: DatasetRecord, s: string, ot?: st
     setErr(""); setBusy(true);
     let fixed = { ...p.record, resourceType: "Dataset" };
     let src = `Your ${p.format} (repaired locally)`;
+    let vInf: VersionInfo | undefined;
     if (p.record.doi) {
       try {
-        const { record } = await fetchByDoi(p.record.doi);
+        const { record, versions } = await fetchByDoi(p.record.doi);
         fixed = { ...record, accessed: p.record.accessed };
         src = `${p.format} repaired against registry`;
+        vInf = versions;
       } catch {}
     }
     track("repair_run", { format: p.format });
-    onLoad(fixed, src, p.originalType, diff(p.record, fixed));
+    onLoad(fixed, src, p.originalType, diff(p.record, fixed), vInf);
     setBusy(false);
   };
   return (
@@ -328,8 +362,9 @@ function NoDoi({ onLoad }: { onLoad: (r: DatasetRecord, s: string) => void }) {
   );
 }
 
-function Workbench({ record, setRecord, origType, changes, source }: {
+function Workbench({ record, setRecord, origType, changes, source, versions, onSwitchDoi }: {
   record: DatasetRecord; setRecord: (r: DatasetRecord) => void; origType?: string; changes: ReturnType<typeof diff>; source: string;
+  versions?: VersionInfo; onSwitchDoi: (doi: string) => void;
 }) {
   const issues = useMemo(() => validate(record, origType), [record, origType]);
   const s = score(issues);
@@ -365,6 +400,8 @@ function Workbench({ record, setRecord, origType, changes, source }: {
             <p className="eyebrow">citation health</p>
           </div>
         </div>
+
+        {versions && <VersionGuard versions={versions} onSwitchDoi={onSwitchDoi} />}
 
         {changes.length > 0 && (
           <div className="mt-5 rounded-lg bg-muted p-4">
@@ -432,6 +469,7 @@ function Workbench({ record, setRecord, origType, changes, source }: {
           <div className="flex gap-2">
             <button className="btn-ghost" onClick={() => copy(out, "exp")}>{copied === "exp" ? "Copied ✓" : "Copy"}</button>
             <button className="btn-ghost" onClick={() => { download(`dataset.${exp === "RIS" ? "ris" : exp === "CSL JSON" ? "json" : exp === "Zotero Extra" ? "txt" : "bib"}`, out); track("export_download", { format: exp }); }}>Download</button>
+            <button className="btn-ghost" onClick={() => { navigator.clipboard.writeText(window.location.origin + "/#r=" + encodeShare({ record, origType, changes: changes as any, source })); setCopied("share"); setTimeout(() => setCopied(""), 1200); track("share_link"); }}>{copied === "share" ? "Link copied ✓" : "Copy share link"}</button>
           </div>
         </div>
         <pre className="mt-4 overflow-x-auto rounded-lg bg-muted p-4 font-mono text-xs leading-relaxed">{out}</pre>
@@ -442,6 +480,29 @@ function Workbench({ record, setRecord, origType, changes, source }: {
         <p className="eyebrow">Data availability statement</p>
         <p className="mt-3 text-sm leading-relaxed">{toAvailability(record)}</p>
         <button className="btn-ghost mt-4" onClick={() => copy(toAvailability(record), "das")}>{copied === "das" ? "Copied ✓" : "Copy statement"}</button>
+      </div>
+    </div>
+  );
+}
+
+function VersionGuard({ versions, onSwitchDoi }: { versions: VersionInfo; onSwitchDoi: (doi: string) => void }) {
+  if (versions.kind === "version") {
+    return (
+      <div className="mt-5 rounded-lg border border-success/40 bg-success/10 p-4 text-sm">
+        <b className="font-medium">Version DOI — good.</b>{" "}
+        <span className="text-muted-foreground">This DOI pins the exact version you used, which is what reproducibility guidance recommends. The concept DOI covering all versions is{" "}
+          <a className="underline underline-offset-2" href={`https://doi.org/${versions.conceptDoi}`}>{versions.conceptDoi}</a>.</span>
+      </div>
+    );
+  }
+  return (
+    <div className="mt-5 rounded-lg border border-warning/50 bg-warning/10 p-4 text-sm">
+      <b className="font-medium">Concept DOI — this link always resolves to the latest version.</b>{" "}
+      <span className="text-muted-foreground">If your results depend on a specific snapshot of the data, cite a version DOI instead:</span>
+      <div className="mt-2 flex flex-wrap gap-2">
+        {versions.versionDois?.slice(0, 6).map((d) => (
+          <button key={d} className="btn-ghost" onClick={() => onSwitchDoi(d)}>{d}</button>
+        ))}
       </div>
     </div>
   );
