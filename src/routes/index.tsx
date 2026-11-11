@@ -32,7 +32,7 @@ const FAQS: { q: string; a: string }[] = [
   },
   {
     q: "Is there a browser button?",
-    a: "Yes. Drag the “Fix this citation” button in the Browser button section to your bookmarks bar. On any repository or journal page, one click finds the DOI and opens it in CitationLX. No extension or install needed.",
+    a: "Yes. Drag the “Fix this citation” button in the Browser button section to your bookmarks bar. On any repository or journal page, one click finds the DOI and opens it in CitationLX. No extension or install needed. On mobile, where bookmarklets don't work: install CitationLX to your home screen and share pages to it from the browser's Share menu (Android), or copy the link and tap “Paste & fix” in the DOI tab.",
   },
   {
     q: "Can I install CitationLX as an app?",
@@ -162,14 +162,18 @@ function Index() {
       }
       return;
     }
-    const q = new URLSearchParams(window.location.search).get("doi");
+    const sp = new URLSearchParams(window.location.search);
+    const q = sp.get("doi") || [sp.get("url"), sp.get("text"), sp.get("title")].filter(Boolean).join(" ");
     const clean = q ? extractDoi(q) : null;
     if (clean) {
-      track("doi_fetch", { doi: clean, via: "guide" });
+      track("doi_fetch", { doi: clean, via: sp.get("doi") ? "guide" : "pwa" });
       setDeepLink({ doi: clean, busy: true, err: "" });
       fetchByDoi(clean)
         .then(({ record, source, rawType, versions: v }) => { load(record, source, rawType, [], v); setDeepLink({ doi: clean, busy: false, err: "" }); })
         .catch((e: any) => { setDeepLink({ doi: clean, busy: false, err: (e?.message || "Couldn't fetch that DOI") + " — check your connection, then press Fetch metadata to retry." }); });
+    } else if (q) {
+      // PWA share target shared a page without an extractable DOI: prefill it so the user can retry or switch tabs.
+      setDeepLink({ doi: sp.get("url") || q, busy: false, err: "" });
     }
   }, []);
 
@@ -254,6 +258,9 @@ function Index() {
             DOI (from the page's citation metadata or your text selection) and opens it in CitationLX.
           </p>
           <Bookmarklet />
+          <p className="mt-4 max-w-2xl text-sm leading-relaxed text-muted-foreground">
+            <b className="font-medium text-foreground">On your phone?</b> Mobile browsers don't run bookmarklets. Install CitationLX to your home screen and use the browser's Share menu → CitationLX (Android), or copy the page link and tap “Paste & fix” in the Cite by DOI tab.
+          </p>
         </div>
       </section>
 
@@ -364,19 +371,35 @@ function DoiInput({ onLoad, deepLink }: { onLoad: (r: DatasetRecord, s: string, 
   const [err, setErr] = useState("");
   useEffect(() => { if (deepLink?.doi) setV((prev) => prev || deepLink.doi); }, [deepLink?.doi]);
   const fetching = busy || !!deepLink?.busy;
-  const go = async () => {
-    const doi = extractDoi(v);
+  const go = async (raw?: string) => {
+    const doi = extractDoi(raw ?? v);
     if (!doi) return setErr("No DOI found in that input. Repository pages (Zenodo, Dryad, figshare) usually show one — or use the “No DOI” tab to build the citation manually.");
     setErr(""); setBusy(true);
     try { const { record, source, rawType, versions } = await fetchByDoi(doi); track("doi_fetch", { doi }); onLoad(record, source, rawType, [], versions); }
     catch (e: any) { track("doi_fetch_error"); setErr(`${e.message} — you can also switch to the “No DOI” tab and enter the details manually.`); }
     finally { setBusy(false); }
   };
+  const pasteAndGo = async () => {
+    try {
+      const t = await navigator.clipboard.readText();
+      if (!t) return setErr("The clipboard is empty — copy the page link first, then tap Paste & fix.");
+      setV(t);
+      track("paste_fix");
+      go(t);
+    } catch {
+      setErr("Couldn't read the clipboard. Copy the page link, paste it above, then press Fetch metadata.");
+    }
+  };
   return (
     <div className="space-y-3">
       <input className="field font-mono" placeholder="10.5281/zenodo.… or URL" value={v}
         onChange={(e) => setV(e.target.value)} onKeyDown={(e) => e.key === "Enter" && go()} />
-      <button className="btn w-full justify-center" disabled={fetching} onClick={go}>{fetching ? "Fetching…" : "Fetch metadata"}</button>
+      <div className="flex gap-2">
+        <button className="btn flex-1 justify-center" disabled={fetching} onClick={() => go()}>{fetching ? "Fetching…" : "Fetch metadata"}</button>
+        {typeof navigator !== "undefined" && !!navigator.clipboard?.readText && (
+          <button className="btn-ghost" disabled={fetching} onClick={pasteAndGo}>Paste & fix</button>
+        )}
+      </div>
       {(err || deepLink?.err) && <p className="text-sm text-destructive">{err || deepLink?.err}</p>}
     </div>
   );
