@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 import { track } from "@/lib/analytics";
+import { ThemeToggle } from "@/components/ThemeToggle";
 
 export type Faq = { q: string; a: string };
 
@@ -30,7 +31,10 @@ export function GuidePage({ title, description, updated, faq, related, children 
           <span className="font-serif text-2xl italic">CitationLX</span>
           <span className="eyebrow">dataset citation repair</span>
         </a>
-        <a href="/" className="btn-ghost">Open the tool</a>
+        <div className="flex items-center gap-2">
+          <ThemeToggle />
+          <a href="/" className="btn-ghost">Open the tool</a>
+        </div>
       </header>
 
       <article className="mx-auto max-w-3xl px-6 pb-10 pt-8">
