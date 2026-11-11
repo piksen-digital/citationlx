@@ -10,6 +10,10 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as GuidesIndexRouteImport } from './routes/guides/index'
+import { Route as GuidesCiteZenodoDatasetRouteImport } from './routes/guides/cite-zenodo-dataset'
+import { Route as GuidesCiteFigshareDatasetRouteImport } from './routes/guides/cite-figshare-dataset'
+import { Route as GuidesCiteDryadDatasetRouteImport } from './routes/guides/cite-dryad-dataset'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -17,26 +21,66 @@ const IndexRoute = IndexRouteImport.update({
   getParentRoute: () => rootRouteImport,
 } as any)
 
+const GuidesIndexRoute = GuidesIndexRouteImport.update({
+  id: '/guides/',
+  path: '/guides',
+  getParentRoute: () => rootRouteImport,
+} as any)
+
+const GuidesCiteZenodoDatasetRoute = GuidesCiteZenodoDatasetRouteImport.update({
+  id: '/guides/cite-zenodo-dataset',
+  path: '/guides/cite-zenodo-dataset',
+  getParentRoute: () => rootRouteImport,
+} as any)
+
+const GuidesCiteFigshareDatasetRoute = GuidesCiteFigshareDatasetRouteImport.update({
+  id: '/guides/cite-figshare-dataset',
+  path: '/guides/cite-figshare-dataset',
+  getParentRoute: () => rootRouteImport,
+} as any)
+
+const GuidesCiteDryadDatasetRoute = GuidesCiteDryadDatasetRouteImport.update({
+  id: '/guides/cite-dryad-dataset',
+  path: '/guides/cite-dryad-dataset',
+  getParentRoute: () => rootRouteImport,
+} as any)
+
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/guides': typeof GuidesIndexRoute
+  '/guides/cite-zenodo-dataset': typeof GuidesCiteZenodoDatasetRoute
+  '/guides/cite-figshare-dataset': typeof GuidesCiteFigshareDatasetRoute
+  '/guides/cite-dryad-dataset': typeof GuidesCiteDryadDatasetRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/guides': typeof GuidesIndexRoute
+  '/guides/cite-zenodo-dataset': typeof GuidesCiteZenodoDatasetRoute
+  '/guides/cite-figshare-dataset': typeof GuidesCiteFigshareDatasetRoute
+  '/guides/cite-dryad-dataset': typeof GuidesCiteDryadDatasetRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/guides': typeof GuidesIndexRoute
+  '/guides/cite-zenodo-dataset': typeof GuidesCiteZenodoDatasetRoute
+  '/guides/cite-figshare-dataset': typeof GuidesCiteFigshareDatasetRoute
+  '/guides/cite-dryad-dataset': typeof GuidesCiteDryadDatasetRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/'
+  fullPaths: '/' | '/guides' | '/guides/cite-zenodo-dataset' | '/guides/cite-figshare-dataset' | '/guides/cite-dryad-dataset'
   fileRoutesByTo: FileRoutesByTo
-  to: '/'
-  id: '__root__' | '/'
+  to: '/' | '/guides' | '/guides/cite-zenodo-dataset' | '/guides/cite-figshare-dataset' | '/guides/cite-dryad-dataset'
+  id: '__root__' | '/' | '/guides/' | '/guides/cite-zenodo-dataset' | '/guides/cite-figshare-dataset' | '/guides/cite-dryad-dataset'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  GuidesIndexRoute: typeof GuidesIndexRoute
+  GuidesCiteZenodoDatasetRoute: typeof GuidesCiteZenodoDatasetRoute
+  GuidesCiteFigshareDatasetRoute: typeof GuidesCiteFigshareDatasetRoute
+  GuidesCiteDryadDatasetRoute: typeof GuidesCiteDryadDatasetRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -48,11 +92,43 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/guides/': {
+      id: '/guides/'
+      path: '/guides'
+      fullPath: '/guides'
+      preLoaderRoute: typeof GuidesIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/guides/cite-zenodo-dataset': {
+      id: '/guides/cite-zenodo-dataset'
+      path: '/guides/cite-zenodo-dataset'
+      fullPath: '/guides/cite-zenodo-dataset'
+      preLoaderRoute: typeof GuidesCiteZenodoDatasetRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/guides/cite-figshare-dataset': {
+      id: '/guides/cite-figshare-dataset'
+      path: '/guides/cite-figshare-dataset'
+      fullPath: '/guides/cite-figshare-dataset'
+      preLoaderRoute: typeof GuidesCiteFigshareDatasetRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/guides/cite-dryad-dataset': {
+      id: '/guides/cite-dryad-dataset'
+      path: '/guides/cite-dryad-dataset'
+      fullPath: '/guides/cite-dryad-dataset'
+      preLoaderRoute: typeof GuidesCiteDryadDatasetRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  GuidesIndexRoute: GuidesIndexRoute,
+  GuidesCiteZenodoDatasetRoute: GuidesCiteZenodoDatasetRoute,
+  GuidesCiteFigshareDatasetRoute: GuidesCiteFigshareDatasetRoute,
+  GuidesCiteDryadDatasetRoute: GuidesCiteDryadDatasetRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
