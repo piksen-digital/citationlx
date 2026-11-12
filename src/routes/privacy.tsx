@@ -73,7 +73,7 @@ function PrivacyPage() {
             <p className="mt-3">
               Privacy enquiries can be sent to{" "}
               <a className="underline underline-offset-2" href="mailto:cantrell22@hotmail.com">
-                cantrell22@hotmail.com
+                Contact
               </a>.
             </p>
           </section>
@@ -278,7 +278,7 @@ function PrivacyPage() {
             <p className="mt-3">
               Questions or requests about this policy can be sent to{" "}
               <a className="underline underline-offset-2" href="mailto:cantrell22@hotmail.com">
-                cantrell22@hotmail.com
+                Contact
               </a>.
             </p>
           </section>
@@ -291,7 +291,7 @@ function PrivacyPage() {
       </article>
 
       <footer className="border-t py-8 text-center text-xs text-muted-foreground">
-        <p>© {new Date().getFullYear()} CitationLX · Independently operated by George Chapungu · Piksen Digital</p>
+        <p>© {new Date().getFullYear()} CitationLX</p>
         <p className="mt-2">
           <a className="underline underline-offset-2" href="/terms">Terms and Conditions</a>
         </p>
