@@ -306,7 +306,7 @@ function TermsPage() {
             <p className="mt-3">
               Questions about these terms can be sent to{" "}
               <a className="underline underline-offset-2" href="mailto:cantrell22@hotmail.com">
-                cantrell22@hotmail.com
+                Contact
               </a>.
             </p>
           </section>
@@ -319,7 +319,7 @@ function TermsPage() {
       </article>
 
       <footer className="border-t py-8 text-center text-xs text-muted-foreground">
-        <p>© {new Date().getFullYear()} CitationLX · Independently operated by George Chapungu · Piksen Digital</p>
+        <p>© {new Date().getFullYear()} CitationLX</p>
         <p className="mt-2">
           <a className="underline underline-offset-2" href="/privacy">Privacy Policy</a>
         </p>
